@@ -1,0 +1,324 @@
+[tools]
+# No specific tool versions required — uses system shell
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Setup Tasks
+# ─────────────────────────────────────────────────────────────────────────────
+
+[tasks.setup-qwen-global]
+description = "Create global Qwen Code skills symlinks (~/.qwen/skills/)"
+run = """
+#!/bin/bash
+set -e
+mkdir -p ~/.qwen/skills
+cd ~/Workspace/.agents/skills/
+for skill in */; do
+    skill="${skill%/}"
+    ln -sf "$(pwd)/${skill}" ~/.qwen/skills/"${skill}"
+done
+echo "✓ Qwen Code global skills set up"
+"""
+
+[tasks.setup-qwen-workspace]
+description = "Create workspace-level Qwen Code skills symlinks (~/Workspace/.qwen/skills/)"
+run = """
+#!/bin/bash
+set -e
+cd ~/Workspace/
+mkdir -p .qwen/skills
+for skill in .agents/skills/*/; do
+    ln -sf "../../.agents/skills/$(basename "${skill}")" .qwen/skills/"$(basename "${skill}")"
+done
+echo "✓ Qwen Code workspace skills set up"
+"""
+
+[tasks.setup-claude-global]
+description = "Create global Claude Code skills symlinks (~/.claude/skills/)"
+run = """
+#!/bin/bash
+set -e
+mkdir -p ~/.claude/skills
+cd ~/Workspace/.agents/skills/
+for skill in */; do
+    skill="${skill%/}"
+    ln -sf "$(pwd)/${skill}" ~/.claude/skills/"${skill}"
+done
+echo "✓ Claude Code global skills set up"
+"""
+
+[tasks.setup-claude-workspace]
+description = "Create workspace-level Claude Code skills symlinks (~/Workspace/.claude/skills/)"
+run = """
+#!/bin/bash
+set -e
+cd ~/Workspace/
+mkdir -p .claude/skills
+for skill in .agents/skills/*/; do
+    ln -sf "../../.agents/skills/$(basename "${skill}")" .claude/skills/"$(basename "${skill}")"
+done
+echo "✓ Claude Code workspace skills set up"
+"""
+
+[tasks.setup-codex-global]
+description = "Create global Codex skills symlinks (~/.codex/skills/)"
+run = """
+#!/bin/bash
+set -e
+mkdir -p ~/.codex/skills
+cd ~/Workspace/.agents/skills/
+for skill in */; do
+    skill="${skill%/}"
+    ln -sf "$(pwd)/${skill}" ~/.codex/skills/"${skill}"
+done
+echo "✓ Codex global skills set up"
+"""
+
+[tasks.setup-codex-workspace]
+description = "Create workspace-level Codex skills symlinks (~/Workspace/.codex/skills/)"
+run = """
+#!/bin/bash
+set -e
+cd ~/Workspace/
+mkdir -p .codex/skills
+for skill in .agents/skills/*/; do
+    ln -sf "../../.agents/skills/$(basename "${skill}")" .codex/skills/"$(basename "${skill}")"
+done
+echo "✓ Codex workspace skills set up"
+"""
+
+[tasks.setup-all]
+description = "Set up global skills symlinks for ALL assistants (Qwen, Claude, Codex)"
+run = """
+#!/bin/bash
+set -e
+SKILLS_SOURCE="$HOME/Workspace/.agents/skills"
+echo "Setting up skills from: $SKILLS_SOURCE"
+
+echo "Setting up Qwen Code skills..."
+mkdir -p ~/.qwen/skills
+for skill in "$SKILLS_SOURCE"/*/; do
+    ln -sf "$skill" ~/.qwen/skills/$(basename "$skill")
+done
+
+echo "Setting up Claude Code skills..."
+mkdir -p ~/.claude/skills
+for skill in "$SKILLS_SOURCE"/*/; do
+    ln -sf "$skill" ~/.claude/skills/$(basename "$skill")
+done
+
+echo "Setting up Codex skills..."
+mkdir -p ~/.codex/skills
+for skill in "$SKILLS_SOURCE"/*/; do
+    ln -sf "$skill" ~/.codex/skills/$(basename "$skill")
+done
+
+echo "✓ All skills set up successfully!"
+"""
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Verify Tasks
+# ─────────────────────────────────────────────────────────────────────────────
+
+[tasks.verify]
+description = "Verify skill symlinks exist for all assistants (global + workspace)"
+run = """
+#!/bin/bash
+echo "=== Qwen Code — Global (~/.qwen/skills/) ==="
+ls -la ~/.qwen/skills/ 2>/dev/null || echo "  Not set up"
+
+echo ""
+echo "=== Qwen Code — Workspace (~Workspace/.qwen/skills/) ==="
+ls -la ~/Workspace/.qwen/skills/ 2>/dev/null || echo "  Not set up"
+
+echo ""
+echo "=== Claude Code — Global (~/.claude/skills/) ==="
+ls -la ~/.claude/skills/ 2>/dev/null || echo "  Not set up"
+
+echo ""
+echo "=== Claude Code — Workspace (~/Workspace/.claude/skills/) ==="
+ls -la ~/Workspace/.claude/skills/ 2>/dev/null || echo "  Not set up"
+
+echo ""
+echo "=== Codex — Global (~/.codex/skills/) ==="
+ls -la ~/.codex/skills/ 2>/dev/null || echo "  Not set up"
+
+echo ""
+echo "=== Codex — Workspace (~/Workspace/.codex/skills/) ==="
+ls -la ~/Workspace/.codex/skills/ 2>/dev/null || echo "  Not set up"
+
+echo ""
+echo "=== Source Repo (~/Workspace/.agents/skills/) ==="
+ls ~/Workspace/.agents/skills/
+"""
+
+[tasks.verify-source]
+description = "List all skills in the source repository"
+run = "ls ~/Workspace/.agents/skills/"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Refresh Tasks
+# ─────────────────────────────────────────────────────────────────────────────
+
+[tasks.refresh-claude]
+description = "Trigger Claude Code to reload skills (touch the skills directory)"
+run = """
+touch ~/.claude/skills/
+echo "✓ Claude Code skills directory touched — restart your session to reload"
+"""
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Remove Tasks
+# ─────────────────────────────────────────────────────────────────────────────
+
+[tasks.remove-all]
+description = "Remove ALL skill symlinks from all assistants (global only)"
+run = """
+#!/bin/bash
+echo "Removing skill symlinks..."
+rm -rf ~/.qwen/skills/*
+rm -rf ~/.claude/skills/*
+rm -rf ~/.codex/skills/*
+echo "✓ All skill symlinks removed!"
+"""
+
+[tasks.fix-symlinks]
+description = "Fix broken symlinks after moving workspace — removes and re-creates global symlinks for all assistants"
+run = """
+#!/bin/bash
+set -e
+echo "Removing stale symlinks..."
+rm -f ~/.qwen/skills/*
+rm -f ~/.claude/skills/*
+rm -f ~/.codex/skills/*
+
+SKILLS_SOURCE="$HOME/Workspace/.agents/skills"
+echo "Re-creating symlinks from: $SKILLS_SOURCE"
+
+mkdir -p ~/.qwen/skills ~/.claude/skills ~/.codex/skills
+
+for skill in "$SKILLS_SOURCE"/*/; do
+    name=$(basename "$skill")
+    ln -sf "$skill" ~/.qwen/skills/$name
+    ln -sf "$skill" ~/.claude/skills/$name
+    ln -sf "$skill" ~/.codex/skills/$name
+done
+
+echo "✓ All symlinks restored!"
+"""
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Skill Management Tasks
+# ─────────────────────────────────────────────────────────────────────────────
+
+[tasks.skill-link]
+description = "Create symlinks for a new skill across all assistants. Usage: mise run skill-link <skill-name>"
+run = """
+#!/bin/bash
+set -e
+SKILL="${1:?Error: skill name required. Usage: mise run skill-link <skill-name>}"
+SKILLS_SOURCE="$HOME/Workspace/.agents/skills"
+
+if [ ! -d "$SKILLS_SOURCE/$SKILL" ]; then
+    echo "Error: skill directory not found: $SKILLS_SOURCE/$SKILL"
+    exit 1
+fi
+
+echo "Creating symlinks for skill: $SKILL"
+
+# Global symlinks
+ln -sf "$SKILLS_SOURCE/$SKILL" ~/.qwen/skills/$SKILL
+ln -sf "$SKILLS_SOURCE/$SKILL" ~/.claude/skills/$SKILL
+ln -sf "$SKILLS_SOURCE/$SKILL" ~/.codex/skills/$SKILL
+
+# Workspace symlinks
+ln -sf "../../.agents/skills/$SKILL" ~/Workspace/.qwen/skills/$SKILL
+ln -sf "../../.agents/skills/$SKILL" ~/Workspace/.claude/skills/$SKILL
+ln -sf "../../.agents/skills/$SKILL" ~/Workspace/.codex/skills/$SKILL
+
+echo "✓ Symlinks created for: $SKILL"
+"""
+
+[tasks.skill-unlink]
+description = "Remove symlinks for a skill from all assistants. Usage: mise run skill-unlink <skill-name>"
+run = """
+#!/bin/bash
+SKILL="${1:?Error: skill name required. Usage: mise run skill-unlink <skill-name>}"
+
+echo "Removing symlinks for skill: $SKILL"
+
+# Global symlinks
+rm -f ~/.qwen/skills/$SKILL
+rm -f ~/.claude/skills/$SKILL
+rm -f ~/.codex/skills/$SKILL
+
+# Workspace symlinks
+rm -f ~/Workspace/.qwen/skills/$SKILL
+rm -f ~/Workspace/.claude/skills/$SKILL
+rm -f ~/Workspace/.codex/skills/$SKILL
+
+echo "✓ Symlinks removed for: $SKILL"
+"""
+
+[tasks.skill-create]
+description = "Scaffold a new skill directory with a blank SKILL.md. Usage: mise run skill-create <skill-name>"
+run = """
+#!/bin/bash
+set -e
+SKILL="${1:?Error: skill name required. Usage: mise run skill-create <skill-name>}"
+SKILL_DIR="$HOME/Workspace/.agents/skills/$SKILL"
+
+if [ -d "$SKILL_DIR" ]; then
+    echo "Error: skill already exists: $SKILL_DIR"
+    exit 1
+fi
+
+mkdir "$SKILL_DIR"
+cat > "$SKILL_DIR/SKILL.md" <<EOF
+# $SKILL
+
+TODO: Describe what this skill does.
+
+## When to Use
+
+TODO: Describe when this skill should be invoked.
+
+## Usage
+
+TODO: Add usage examples.
+EOF
+
+echo "✓ Skill scaffolded at: $SKILL_DIR"
+echo "Next steps:"
+echo "  1. Edit $SKILL_DIR/SKILL.md"
+echo "  2. Add implementation files"
+echo "  3. Run: mise run skill-link $SKILL"
+echo "  4. Update SKILLINDEX.md and README.md"
+echo "  5. Run: mise run git-add $SKILL"
+"""
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Git Workflow Tasks
+# ─────────────────────────────────────────────────────────────────────────────
+
+[tasks.git-status]
+description = "Show git status in the skills repository"
+run = "git -C ~/Workspace/.agents/skills/ status"
+
+[tasks.git-add]
+description = "Stage a skill + index files for commit. Usage: mise run git-add <skill-name>"
+run = """
+#!/bin/bash
+SKILL="${1:?Error: skill name required. Usage: mise run git-add <skill-name>}"
+cd ~/Workspace/.agents/skills/
+git add "$SKILL/" SKILLINDEX.md README.md
+echo "✓ Staged: $SKILL/ SKILLINDEX.md README.md"
+git status --short
+"""
+
+[tasks.git-push]
+description = "Push committed changes to remote"
+run = """
+cd ~/Workspace/.agents/skills/
+git push
+echo "✓ Pushed to remote"
+"""
