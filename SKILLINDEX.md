@@ -1,6 +1,6 @@
-# Skills
+# Skill Index
+Last Updated: 2026/02/20
 
-## Skill Index
 | Skill | Description |
 |-------|-------------|
 | `algorithmic-art` | Create generative art using p5.js with seeded randomness and interactive parameters |
