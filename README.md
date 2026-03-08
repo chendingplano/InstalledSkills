@@ -1,4 +1,4 @@
-# Claude Code Skills Repository
+# Skills Repository
 
 **Central Git repository for managing skills across all coding assistants.**
 
@@ -18,11 +18,11 @@ This repository serves as the **single source of truth** for all coding assistan
 ```
 .agents/skills/
 ├── README.md           # This file
-├── SKILL.md            # Skills documentation guide
-├── SKILLINDEX.md       # Complete index of available skills
-└── <skill-name>/       # Individual skill directories
-    ├── SKILL.md        # Skill-specific documentation
-    └── ...             # Skill implementation files
+├── skills              # The directory for skills
+    └── README.md       # The readme for skills
+    └── mise.toml       # The mise config file
+    └── <skill-name>/   # Individual skill directories
+    └── .../            # Individual skill directories
 ```
 
 ## Available Skills

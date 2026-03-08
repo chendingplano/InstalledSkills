@@ -1,18 +1,36 @@
+---
+name: superpowers
+description: Reference documentation for the Superpowers Claude Code plugin — a suite of 14 coding workflow skills (TDD, git worktrees, code review, planning, debugging, subagent orchestration) delivered via a SessionStart hook. Install with `claude plugin install superpowers@superpowers-marketplace`.
+---
+
 # Overview
 
-This skill is available in Claude Code by default. It is installed in ~/.claude/plugins/marketplaces/superpowers-marketplace. Its README.md is copied to README.md in this directory for reference. 
+This skill is available in Claude Code by default. It is installed in `~/.claude/plugins/marketplaces/`
+superpowers-marketplace. Its README.md is copied to README.md in this
+directory for reference.
 
 ## Skills
 
-Superpowsers is a plugin. It uses a number of skills (https://github.com/obra/superpowers/tree/main/skills). As of this writing, there are 14 skills, installed in ~/.claude/plugins/cache/superpowers/skills. They came bundered with the plugin when you ran "claude plugin install".
+Superpowsers is a plugin. It uses a number of skills (
+`https://github.com/obra/superpowers/tree/main/skills`).
+As of this writing, there are 14 skills, installed in
+`~/.claude/plugins/cache/superpowers/skills`.
+They came bundered with the plugin when you ran "claude plugin install".
 
-Superpowers is just a delivery mechnism for the skills + the SessionStart hook that activates them. Once activated and a session starts, superpowers kicks in, using these skills to guide your software development.
+Superpowers is just a delivery mechnism for the skills + the SessionStart
+hook that activates them. Once activated and a session starts, superpowers
+kicks in, using these skills to guide
+your software development.
 
 ## Superpowers Marketplace
 
-Superpowers marketplace is a plugin catalog - a separate repo (https://github.com/obra/superpowers-marketplace) that lists available plugins you can install. Think of it like an app store registry. Right now it has 3 plugins:
+Superpowers marketplace is a plugin catalog - a separate repo (
+`https://github.com/obra/superpowers-marketplace`) that lists available plugins
+you can install.
+Think of it like an app store registry. Right now it has 3 plugins:
+
 | Plugin | Description |
-|--------|-------------|
+| -------- | ------------- |
 | superpowers (Core) | The 14 coding skills |
 | elements-of-style | Writing guidance based on Strunk's Elements of Style |
 | superpowers-developing-for-claude-code | Skills for developing Claude Code plugins/skills/MCP servers |

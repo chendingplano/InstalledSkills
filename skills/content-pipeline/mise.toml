@@ -1,0 +1,265 @@
+[env]
+SKILL_DIR = "{{config_root}}"
+SKILL_NAME = "content-pipeline"
+REPO_URL = "https://github.com/OrangeViolin/content-pipeline.git"
+REPO_DIR = "{{config_root}}/content-pipeline"
+
+[tasks.clone]
+description = "Clone the content-pipeline repository"
+run = """
+#!/bin/bash
+set -e
+
+SKILL_DIR="{{config_root}}"
+REPO_URL="https://github.com/OrangeViolin/content-pipeline.git"
+REPO_DIR="${SKILL_DIR}/content-pipeline"
+
+if [ -d "${REPO_DIR}" ]; then
+  echo "✓ Repository already exists at ${REPO_DIR}"
+  echo "  To update, run: mise run pull"
+else
+  echo "Cloning content-pipeline repository..."
+  git clone "${REPO_URL}" "${REPO_DIR}"
+  echo "✓ Repository cloned to ${REPO_DIR}"
+fi
+"""
+
+[tasks.pull]
+description = "Pull latest changes from the content-pipeline repository"
+run = """
+#!/bin/bash
+set -e
+
+REPO_DIR="{{config_root}}/content-pipeline"
+
+if [ ! -d "${REPO_DIR}" ]; then
+  echo "✗ Repository not found. Run: mise run clone"
+  exit 1
+fi
+
+cd "${REPO_DIR}"
+echo "Pulling latest changes..."
+git pull
+echo "✓ Repository updated"
+"""
+
+[tasks.setup]
+description = "Set up the content-pipeline skill (create local config directory and .env file)"
+run = """
+#!/bin/bash
+set -e
+
+SKILL_DIR="{{config_root}}"
+REPO_DIR="${SKILL_DIR}/content-pipeline"
+LOCAL_DIR="${REPO_DIR}/local"
+
+# Ensure repository is cloned
+if [ ! -d "${REPO_DIR}" ]; then
+  echo "✗ Repository not found. Running clone..."
+  mise run clone
+fi
+
+# Create local config directory
+if [ ! -d "${LOCAL_DIR}" ]; then
+  echo "Creating local config directory..."
+  mkdir -p "${LOCAL_DIR}"
+  echo "✓ Created ${LOCAL_DIR}"
+else
+  echo "✓ Local config directory already exists"
+fi
+
+# Copy .env.example if .env doesn't exist
+if [ ! -f "${LOCAL_DIR}/.env" ]; then
+  echo "Creating .env file from template..."
+  cp "${REPO_DIR}/.env.example" "${LOCAL_DIR}/.env"
+  echo "✓ Created ${LOCAL_DIR}/.env"
+  echo ""
+  echo "⚠️  Please configure your API keys in ${LOCAL_DIR}/.env"
+  echo "   Required: FISH_API_KEY"
+  echo "   Optional: WECHAT_APPID, WECHAT_APPSECRET, MD_FORMATTER_DIR, etc."
+else
+  echo "✓ .env file already exists"
+fi
+
+# Create SKILL.local.md if it doesn't exist (optional overrides)
+if [ ! -f "${LOCAL_DIR}/SKILL.local.md" ]; then
+  echo "Creating SKILL.local.md template..."
+  cat > "${LOCAL_DIR}/SKILL.local.md" << 'EOF'
+# Content Pipeline - Local Overrides
+
+Use this file to override default settings from SKILL.md
+
+## Output Directory
+- Default: User-specified or `/tmp/`
+- Override: Set your preferred output directory here
+
+## Brand Colors
+- 01fish: Ink Green #1A3328 (85%) + Fish Red #C44536 (5%) + Rice Paper #F2EDE3
+- 鱼头头：Peach Pink #FF6B9D (15%) + Cream Yellow #FFF9E6 (40%) + Twilight Purple #9D7BA8 (10%)
+
+## Personal Settings
+- WeChat ID: [你的微信号]
+- Author Name: [你的笔名]
+- Persona: [你的 IP 人设]
+
+## Custom Paths
+- Brand color document: [path/to/your/brand-colors.md]
+- Personal brand style: [path/to/your/personal-brand.md]
+- Local Xiaohongshu examples: [path/to/your/xiaohongshu-examples/]
+EOF
+  echo "✓ Created ${LOCAL_DIR}/SKILL.local.md"
+fi
+
+echo ""
+echo "✓ Setup complete!"
+echo ""
+echo "Next steps:"
+echo "1. Edit ${LOCAL_DIR}/.env and add your API keys"
+echo "2. (Optional) Edit ${LOCAL_DIR}/SKILL.local.md to customize settings"
+echo "3. Start using the skill in Claude Code"
+"""
+
+[tasks.install]
+description = "Install the content-pipeline skill (clone + setup)"
+depends = ["clone", "setup"]
+run = """
+#!/bin/bash
+echo "✓ Installation complete!"
+"""
+
+[tasks.status]
+description = "Check the installation status of the content-pipeline skill"
+run = """
+#!/bin/bash
+
+SKILL_DIR="{{config_root}}"
+REPO_DIR="${SKILL_DIR}/content-pipeline"
+LOCAL_DIR="${REPO_DIR}/local"
+
+echo "Content Pipeline Skill Status"
+echo "=============================="
+echo ""
+
+# Check repository
+if [ -d "${REPO_DIR}" ]; then
+  echo "✓ Repository: ${REPO_DIR}"
+  cd "${REPO_DIR}"
+  echo "  Branch: $(git branch --show-current)"
+  echo "  Last commit: $(git log -1 --format='%h %s (%cr)')"
+else
+  echo "✗ Repository: Not cloned"
+  echo "  Run: mise run clone"
+fi
+
+echo ""
+
+# Check local config
+if [ -d "${LOCAL_DIR}" ]; then
+  echo "✓ Local config directory: ${LOCAL_DIR}"
+  
+  if [ -f "${LOCAL_DIR}/.env" ]; then
+    echo "  ✓ .env file exists"
+    # Check for required env vars (without exposing values)
+    if grep -q "FISH_API_KEY=" "${LOCAL_DIR}/.env" 2>/dev/null; then
+      echo "    - FISH_API_KEY: configured"
+    else
+      echo "    - FISH_API_KEY: ⚠️  not set (required)"
+    fi
+  else
+    echo "  ✗ .env file: missing"
+  fi
+  
+  if [ -f "${LOCAL_DIR}/SKILL.local.md" ]; then
+    echo "  ✓ SKILL.local.md: exists"
+  else
+    echo "  ✓ SKILL.local.md: not set (optional)"
+  fi
+else
+  echo "✗ Local config directory: Not created"
+  echo "  Run: mise run setup"
+fi
+
+echo ""
+echo "=============================="
+echo "Skill directory: ${SKILL_DIR}"
+"""
+
+[tasks.clean]
+description = "Remove the cloned repository (keeps mise.toml)"
+run = """
+#!/bin/bash
+set -e
+
+REPO_DIR="{{config_root}}/content-pipeline"
+
+if [ -d "${REPO_DIR}" ]; then
+  echo "Removing ${REPO_DIR}..."
+  rm -rf "${REPO_DIR}"
+  echo "✓ Repository removed"
+else
+  echo "✓ Repository does not exist"
+fi
+"""
+
+[tasks.test]
+description = "Test the content-pipeline scripts"
+run = """
+#!/bin/bash
+
+REPO_DIR="{{config_root}}/content-pipeline"
+
+if [ ! -d "${REPO_DIR}" ]; then
+  echo "✗ Repository not found. Run: mise run clone"
+  exit 1
+fi
+
+echo "Testing content-pipeline scripts..."
+echo ""
+
+# Test Python script availability
+if [ -f "${REPO_DIR}/scripts/fetch_wechat_article.py" ]; then
+  echo "✓ fetch_wechat_article.py exists"
+  python3 "${REPO_DIR}/scripts/fetch_wechat_article.py" --help 2>/dev/null || echo "  (Run 'pip install -r requirements.txt' if needed)"
+else
+  echo "✗ fetch_wechat_article.py not found"
+fi
+
+echo ""
+echo "✓ Test complete"
+"""
+
+[tasks.help]
+description = "Show available commands for content-pipeline skill"
+run = """
+#!/bin/bash
+
+echo "Content Pipeline Skill - Available Commands"
+echo "==========================================="
+echo ""
+echo "mise run clone      - Clone the repository"
+echo "mise run pull       - Pull latest changes"
+echo "mise run setup      - Create local config directory and .env"
+echo "mise run install    - Clone + setup (full installation)"
+echo "mise run status     - Check installation status"
+echo "mise run clean      - Remove cloned repository"
+echo "mise run test       - Test scripts"
+echo "mise run help       - Show this help message"
+echo ""
+echo "==========================================="
+echo ""
+echo "Environment Variables (edit local/.env):"
+echo "  Required:"
+echo "    FISH_API_KEY         - Fish Audio TTS API key"
+echo ""
+echo "  Optional:"
+echo "    WECHAT_APPID         - WeChat Official Account App ID"
+echo "    WECHAT_APPSECRET     - WeChat Official Account App Secret"
+echo "    MD_FORMATTER_DIR     - Path to md-formatter tool"
+echo "    BAOUY_WECHAT_SKILL_DIR - Path to baoyu-post-to-wechat skill"
+echo "    MD_TO_WECHAT_SCRIPT  - Path to md-to-wechat converter"
+echo "    REMOTION_DIR         - Path to Remotion brand video project"
+echo ""
+echo "For usage instructions, see:"
+echo "  - content-pipeline/SKILL.md"
+echo "  - content-pipeline/README.md"
+"""

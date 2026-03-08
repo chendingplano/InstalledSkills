@@ -1,5 +1,13 @@
-# Skill Index
-Last Updated: 2026/02/20
+---
+name: skills
+description: Central repository of coding assistant skills shared across Claude Code, Qwen Code, and Codex via symlinks. See ../README.md for full documentation.
+---
+
+# Skills
+
+Central repository of coding assistant skills.
+
+## Available Skills
 
 | Skill | Description |
 |-------|-------------|
