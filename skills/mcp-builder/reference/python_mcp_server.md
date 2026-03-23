@@ -235,7 +235,7 @@ async def _make_api_request(endpoint: str, method: str = "GET", **kwargs) -> dic
     async with httpx.AsyncClient() as client:
         response = await client.request(
             method,
-            f"{API_BASE_URL}/{endpoint}",
+            f"{APP_BASE_URL}/{endpoint}",
             timeout=30.0,
             **kwargs
         )
@@ -350,7 +350,7 @@ from mcp.server.fastmcp import FastMCP
 mcp = FastMCP("example_mcp")
 
 # Constants
-API_BASE_URL = "https://api.example.com/v1"
+APP_BASE_URL = "https://api.example.com/v1"
 
 # Enums
 class ResponseFormat(str, Enum):
@@ -384,7 +384,7 @@ async def _make_api_request(endpoint: str, method: str = "GET", **kwargs) -> dic
     async with httpx.AsyncClient() as client:
         response = await client.request(
             method,
-            f"{API_BASE_URL}/{endpoint}",
+            f"{APP_BASE_URL}/{endpoint}",
             timeout=30.0,
             **kwargs
         )

@@ -448,7 +448,7 @@ async function makeApiRequest<T>(
   try {
     const response = await axios({
       method,
-      url: `${API_BASE_URL}/${endpoint}`,
+      url: `${APP_BASE_URL}/${endpoint}`,
       data,
       params,
       timeout: 30000,
@@ -598,7 +598,7 @@ import { z } from "zod";
 import axios, { AxiosError } from "axios";
 
 // Constants
-const API_BASE_URL = "https://api.example.com/v1";
+const APP_BASE_URL = "https://api.example.com/v1";
 const CHARACTER_LIMIT = 25000;
 
 // Enums
@@ -641,7 +641,7 @@ async function makeApiRequest<T>(
   try {
     const response = await axios({
       method,
-      url: `${API_BASE_URL}/${endpoint}`,
+      url: `${APP_BASE_URL}/${endpoint}`,
       data,
       params,
       timeout: 30000,

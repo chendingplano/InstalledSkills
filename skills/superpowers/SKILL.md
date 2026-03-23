@@ -1,101 +1,63 @@
 ---
 name: superpowers
-description: Reference documentation for the Superpowers Claude Code plugin — a suite of 14 coding workflow skills (TDD, git worktrees, code review, planning, debugging, subagent orchestration) delivered via a SessionStart hook. Install with `claude plugin install superpowers@superpowers-marketplace`.
+description: Use for software development work when you want the Superpowers workflow in Codex: route the task through the bundled 14 workflow skills for brainstorming, planning, TDD, debugging, code review, execution, verification, git worktrees, and branch completion.
 ---
 
-# Overview
+# Superpowers for Codex
 
-This skill is available in Claude Code by default. It is installed in `~/.claude/plugins/marketplaces/`
-superpowers-marketplace. Its README.md is copied to README.md in this
-directory for reference.
+Use this skill as a coordinator for coding work. It adapts the Claude Code `superpowers` plugin into a normal Codex skill by bundling the upstream 14 skill documents as local references.
 
-## Skills
+This skill is for software development tasks only. It is not a plugin and does not auto-run. When it is used, follow the workflow below and load only the relevant reference files.
 
-Superpowsers is a plugin. It uses a number of skills (
-`https://github.com/obra/superpowers/tree/main/skills`).
-As of this writing, there are 14 skills, installed in
-`~/.claude/plugins/cache/superpowers/skills`.
-They came bundered with the plugin when you ran "claude plugin install".
+## Core Rule
 
-Superpowers is just a delivery mechnism for the skills + the SessionStart
-hook that activates them. Once activated and a session starts, superpowers
-kicks in, using these skills to guide
-your software development.
+For coding work, assume one of the bundled Superpowers workflow skills probably applies. Before acting, choose the most relevant skill reference and follow it.
 
-## Superpowers Marketplace
+User instructions, `AGENTS.md`, and project docs override Superpowers guidance.
 
-Superpowers marketplace is a plugin catalog - a separate repo (
-`https://github.com/obra/superpowers-marketplace`) that lists available plugins
-you can install.
-Think of it like an app store registry. Right now it has 3 plugins:
+## Codex Adaptation
 
-| Plugin | Description |
-| -------- | ------------- |
-| superpowers (Core) | The 14 coding skills |
-| elements-of-style | Writing guidance based on Strunk's Elements of Style |
-| superpowers-developing-for-claude-code | Skills for developing Claude Code plugins/skills/MCP servers |
+Read [`references/codex-adaptation.md`](references/codex-adaptation.md) once when first using this skill in a session. It explains how to translate Claude-specific ideas like `Skill`, `TodoWrite`, and subagents into Codex behavior.
 
-## Installations
+## Default Workflow
 
-**Install superpowers**
-```bash
-  claude plugin install superpowers@superpowers-marketplace
-```
+Use this flow unless the user explicitly wants something narrower:
 
-**Install elements-of-style**
-```bash
-  claude plugin install elements-of-style@superpowers-marketplace
-```
+1. If the user is still shaping the work, read `brainstorming/SKILL.md`.
+2. Once requirements are clear and the task is multi-step, read `writing-plans/SKILL.md`.
+3. Before implementation, read `test-driven-development/SKILL.md`.
+4. If you hit a bug, failure, or strange behavior, read `systematic-debugging/SKILL.md`.
+5. Before claiming success, read `verification-before-completion/SKILL.md`.
+6. Before wrapping up a branch or handing off, read `finishing-a-development-branch/SKILL.md`.
 
-**Install developing-for-claude-code**
-```bash
-  claude plugin install developing-for-claude-code@superpowers-marketplace
-```
+## Skill Router
 
-**Automatic activation**
-You don't need to say anything special.
+Choose the smallest relevant subset:
 
-The superpowers plugin uses a SessionStart hook that fires automatically at the beginning of every new session (and on resume/clear/compact). It injects the core using-superpowers skill into Claude's context with high priority (<EXTREMELY_IMPORTANT> tags).
+| Situation | Reference to load |
+|---|---|
+| Starting a coding task and want Superpowers discipline | `references/upstream-skills/using-superpowers/SKILL.md` |
+| Clarifying or designing a feature before coding | `references/upstream-skills/brainstorming/SKILL.md` |
+| Turning approved requirements into implementation steps | `references/upstream-skills/writing-plans/SKILL.md` |
+| Implementing a feature or bugfix | `references/upstream-skills/test-driven-development/SKILL.md` |
+| Debugging failing tests, build errors, regressions, or runtime bugs | `references/upstream-skills/systematic-debugging/SKILL.md` |
+| Running a written plan in the current session | `references/upstream-skills/executing-plans/SKILL.md` |
+| Breaking independent work into parallel tracks | `references/upstream-skills/dispatching-parallel-agents/SKILL.md` |
+| Using isolated branches or workspaces | `references/upstream-skills/using-git-worktrees/SKILL.md` |
+| Requesting review before merge or after a major task | `references/upstream-skills/requesting-code-review/SKILL.md` |
+| Responding to review comments | `references/upstream-skills/receiving-code-review/SKILL.md` |
+| Final proof before saying work is done | `references/upstream-skills/verification-before-completion/SKILL.md` |
+| Completing, merging, or preserving a finished branch | `references/upstream-skills/finishing-a-development-branch/SKILL.md` |
+| Creating or revising skills | `references/upstream-skills/writing-skills/SKILL.md` |
+| Subagent-oriented plan execution | `references/upstream-skills/subagent-driven-development/SKILL.md` |
 
-**Breakdown**
-| Category	| Skills	| Coding-specific? |
-|-----------|---------|------------------|
-| TDD & Testing	| test-driven-development, verification-before-completion	| Yes |
-| Git Workflow	| using-git-worktrees, finishing-a-development-branch	| Yes |
-| Code Review	| requesting-code-review, receiving-code-review	| Yes |
-| Dev Execution	| subagent-driven-development, executing-plans, dispatching-parallel-agents	| Yes |
-| Planning	| brainstorming, writing-plans	| Yes (TDD-centric plans) |
-| Debugging	| systematic-debugging	| Yes |
-| Meta	| using-superpowers, writing-skills	| Neutral |
+## Codex-Specific Notes
 
-The entire pipeline assumes: Brainstorm → Plan (with TDD) → Execute (with tests) → Code Review → Git merge/PR. Every skill references tests, git, commits, and production code.
+- Treat the upstream files as workflow references, not literal host integration instructions.
+- Where an upstream skill says to use a Claude-only feature, adapt it using [`references/codex-adaptation.md`](references/codex-adaptation.md).
+- If a skill assumes subagents and this Codex environment does not provide them, use the same sequencing and review discipline in a single session.
+- Keep the Superpowers discipline, but do not violate higher-priority repository instructions.
 
-**What happens in practice**
+## Bundled Upstream Source
 
-1. On session start — the using-superpowers skill is automatically loaded into context, which tells Claude to check for relevant skills before taking any action
-2. During the session — Claude uses the Skill tool to load specific skills on-demand (e.g., test-driven-development, brainstorming, systematic-debugging) when they're relevant to what you're doing
-3. The skill itself says: "If you think there is even a 1% chance a skill might apply, you ABSOLUTELY MUST invoke the skill"
-
-**Enable/Disable Superpower**
-
-Superpowers is a coding-specific skill. It's a software development workflow plugin, not a general-purpose tool. It adds values only when you are doing software development. For other tasks, you should choose the right skills/tools. Superpowers won't help there and may actually add noise by injecting irrelevant coding-workflow instructions into every session.
-
-For this reason, you need to enable/disable superpowers manually!
-
-**Enable**
-```bash
-claude plugin enable superpowers
-claude plugin enable elements-of-style
-claude plugin enable superpowers-developing-for-claude-code
-```
-
-**Disable**
-```bash
-claude plugin disable superpowers
-claude plugin disable elements-of-style
-claude plugin disable superpowers-developing-for-claude-code
-```
-
-**One Caveat**
-
-This is prompt-based behavior, not hard-coded logic. If you find Claude isn't using the skills in a particular session, saying something like "check your superpowers skills" or "use the brainstorming skill first" would nudge it. But in general, the SessionStart injection should make it automatic.
+The upstream 14 skill documents are bundled under `references/upstream-skills/` so this workspace skill is self-contained and does not depend on Claude's plugin cache.
