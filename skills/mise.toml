@@ -14,7 +14,7 @@ mkdir -p ~/.qwen/skills
 cd ~/Workspace/.agents/skills/
 for skill in */; do
     skill="${skill%/}"
-    ln -sf "$(pwd)/${skill}" ~/.qwen/skills/"${skill}"
+    ln -sfn "$(pwd)/${skill}" ~/.qwen/skills/"${skill}"
 done
 echo "✓ Qwen Code global skills set up"
 """
@@ -27,7 +27,7 @@ set -e
 cd ~/Workspace/
 mkdir -p .qwen/skills
 for skill in .agents/skills/*/; do
-    ln -sf "../../.agents/skills/$(basename "${skill}")" .qwen/skills/"$(basename "${skill}")"
+    ln -sfn "../../.agents/skills/$(basename "${skill}")" .qwen/skills/"$(basename "${skill}")"
 done
 echo "✓ Qwen Code workspace skills set up"
 """
@@ -41,7 +41,7 @@ mkdir -p ~/.claude/skills
 cd ~/Workspace/.agents/skills/
 for skill in */; do
     skill="${skill%/}"
-    ln -sf "$(pwd)/${skill}" ~/.claude/skills/"${skill}"
+    ln -sfn "$(pwd)/${skill}" ~/.claude/skills/"${skill}"
 done
 echo "✓ Claude Code global skills set up"
 """
@@ -54,7 +54,7 @@ set -e
 cd ~/Workspace/
 mkdir -p .claude/skills
 for skill in .agents/skills/*/; do
-    ln -sf "../../.agents/skills/$(basename "${skill}")" .claude/skills/"$(basename "${skill}")"
+    ln -sfn "../../.agents/skills/$(basename "${skill}")" .claude/skills/"$(basename "${skill}")"
 done
 echo "✓ Claude Code workspace skills set up"
 """
@@ -68,7 +68,7 @@ mkdir -p ~/.codex/skills
 cd ~/Workspace/.agents/skills/
 for skill in */; do
     skill="${skill%/}"
-    ln -sf "$(pwd)/${skill}" ~/.codex/skills/"${skill}"
+    ln -sfn "$(pwd)/${skill}" ~/.codex/skills/"${skill}"
 done
 echo "✓ Codex global skills set up"
 """
@@ -81,7 +81,7 @@ set -e
 cd ~/Workspace/
 mkdir -p .codex/skills
 for skill in .agents/skills/*/; do
-    ln -sf "../../.agents/skills/$(basename "${skill}")" .codex/skills/"$(basename "${skill}")"
+    ln -sfn "../../.agents/skills/$(basename "${skill}")" .codex/skills/"$(basename "${skill}")"
 done
 echo "✓ Codex workspace skills set up"
 """
@@ -97,19 +97,19 @@ echo "Setting up skills from: $SKILLS_SOURCE"
 echo "Setting up Qwen Code skills..."
 mkdir -p ~/.qwen/skills
 for skill in "$SKILLS_SOURCE"/*/; do
-    ln -sf "$skill" ~/.qwen/skills/$(basename "$skill")
+    ln -sfn "$skill" ~/.qwen/skills/$(basename "$skill")
 done
 
 echo "Setting up Claude Code skills..."
 mkdir -p ~/.claude/skills
 for skill in "$SKILLS_SOURCE"/*/; do
-    ln -sf "$skill" ~/.claude/skills/$(basename "$skill")
+    ln -sfn "$skill" ~/.claude/skills/$(basename "$skill")
 done
 
 echo "Setting up Codex skills..."
 mkdir -p ~/.codex/skills
 for skill in "$SKILLS_SOURCE"/*/; do
-    ln -sf "$skill" ~/.codex/skills/$(basename "$skill")
+    ln -sfn "$skill" ~/.codex/skills/$(basename "$skill")
 done
 
 echo "✓ All skills set up successfully!"
@@ -198,9 +198,9 @@ mkdir -p ~/.qwen/skills ~/.claude/skills ~/.codex/skills
 
 for skill in "$SKILLS_SOURCE"/*/; do
     name=$(basename "$skill")
-    ln -sf "$skill" ~/.qwen/skills/$name
-    ln -sf "$skill" ~/.claude/skills/$name
-    ln -sf "$skill" ~/.codex/skills/$name
+    ln -sfn "$skill" ~/.qwen/skills/$name
+    ln -sfn "$skill" ~/.claude/skills/$name
+    ln -sfn "$skill" ~/.codex/skills/$name
 done
 
 echo "✓ All symlinks restored!"
@@ -226,14 +226,14 @@ fi
 echo "Creating symlinks for skill: $SKILL"
 
 # Global symlinks
-ln -sf "$SKILLS_SOURCE/$SKILL" ~/.qwen/skills/$SKILL
-ln -sf "$SKILLS_SOURCE/$SKILL" ~/.claude/skills/$SKILL
-ln -sf "$SKILLS_SOURCE/$SKILL" ~/.codex/skills/$SKILL
+ln -sfn "$SKILLS_SOURCE/$SKILL" ~/.qwen/skills/$SKILL
+ln -sfn "$SKILLS_SOURCE/$SKILL" ~/.claude/skills/$SKILL
+ln -sfn "$SKILLS_SOURCE/$SKILL" ~/.codex/skills/$SKILL
 
 # Workspace symlinks
-ln -sf "../../.agents/skills/$SKILL" ~/Workspace/.qwen/skills/$SKILL
-ln -sf "../../.agents/skills/$SKILL" ~/Workspace/.claude/skills/$SKILL
-ln -sf "../../.agents/skills/$SKILL" ~/Workspace/.codex/skills/$SKILL
+ln -sfn "../../.agents/skills/$SKILL" ~/Workspace/.qwen/skills/$SKILL
+ln -sfn "../../.agents/skills/$SKILL" ~/Workspace/.claude/skills/$SKILL
+ln -sfn "../../.agents/skills/$SKILL" ~/Workspace/.codex/skills/$SKILL
 
 echo "✓ Symlinks created for: $SKILL"
 """
@@ -294,6 +294,92 @@ echo "  2. Add implementation files"
 echo "  3. Run: mise run skill-link $SKILL"
 echo "  4. Update SKILLINDEX.md and README.md"
 echo "  5. Run: mise run git-add $SKILL"
+"""
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Upstream Sync Tasks (awesome-claude-skills)
+# ─────────────────────────────────────────────────────────────────────────────
+
+[tasks.sync-awesome]
+description = "Sync new skills from ComposioHQ/awesome-claude-skills repo (non-destructive — only adds new skills)"
+run = """
+#!/bin/bash
+set -e
+REPO_URL="https://github.com/ComposioHQ/awesome-claude-skills.git"
+TMP_DIR="/tmp/awesome-claude-skills"
+SKILLS_DIR="$HOME/Workspace/.agents/skills"
+
+echo "Fetching latest from awesome-claude-skills..."
+rm -rf "$TMP_DIR"
+git clone --depth 1 "$REPO_URL" "$TMP_DIR" 2>/dev/null
+
+NEW_COUNT=0
+SKIP_COUNT=0
+
+for skill_dir in "$TMP_DIR"/*/; do
+    skill=$(basename "$skill_dir")
+    # Skip non-skill entries
+    [[ "$skill" == "template-skill" || "$skill" == "composio-skills" || "$skill" == "document-skills" || "$skill" == "connect-apps-plugin" ]] && continue
+    # Only install if it has a SKILL.md
+    if [ ! -f "$skill_dir/SKILL.md" ]; then
+        continue
+    fi
+    if [ -d "$SKILLS_DIR/$skill" ]; then
+        SKIP_COUNT=$((SKIP_COUNT + 1))
+    else
+        cp -r "$skill_dir" "$SKILLS_DIR/$skill"
+        echo "  + Installed: $skill"
+        NEW_COUNT=$((NEW_COUNT + 1))
+    fi
+done
+
+rm -rf "$TMP_DIR"
+echo ""
+echo "✓ Sync complete: $NEW_COUNT new skills installed, $SKIP_COUNT already existed"
+if [ "$NEW_COUNT" -gt 0 ]; then
+    echo "→ Run 'mise run setup-all' to create symlinks for new skills"
+fi
+"""
+
+[tasks.sync-awesome-update]
+description = "Sync AND update existing skills from awesome-claude-skills (overwrites local changes from upstream)"
+run = """
+#!/bin/bash
+set -e
+REPO_URL="https://github.com/ComposioHQ/awesome-claude-skills.git"
+TMP_DIR="/tmp/awesome-claude-skills"
+SKILLS_DIR="$HOME/Workspace/.agents/skills"
+
+echo "Fetching latest from awesome-claude-skills..."
+rm -rf "$TMP_DIR"
+git clone --depth 1 "$REPO_URL" "$TMP_DIR" 2>/dev/null
+
+NEW_COUNT=0
+UPDATED_COUNT=0
+
+for skill_dir in "$TMP_DIR"/*/; do
+    skill=$(basename "$skill_dir")
+    [[ "$skill" == "template-skill" || "$skill" == "composio-skills" || "$skill" == "document-skills" || "$skill" == "connect-apps-plugin" ]] && continue
+    if [ ! -f "$skill_dir/SKILL.md" ]; then
+        continue
+    fi
+    if [ -d "$SKILLS_DIR/$skill" ]; then
+        cp -r "$skill_dir"/* "$SKILLS_DIR/$skill/"
+        echo "  ↻ Updated: $skill"
+        UPDATED_COUNT=$((UPDATED_COUNT + 1))
+    else
+        cp -r "$skill_dir" "$SKILLS_DIR/$skill"
+        echo "  + Installed: $skill"
+        NEW_COUNT=$((NEW_COUNT + 1))
+    fi
+done
+
+rm -rf "$TMP_DIR"
+echo ""
+echo "✓ Sync complete: $NEW_COUNT new, $UPDATED_COUNT updated"
+if [ "$NEW_COUNT" -gt 0 ]; then
+    echo "→ Run 'mise run setup-all' to create symlinks for new skills"
+fi
 """
 
 # ─────────────────────────────────────────────────────────────────────────────

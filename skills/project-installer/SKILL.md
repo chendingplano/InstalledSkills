@@ -1,28 +1,29 @@
 ---
 name: project-installer
-description: 'Install open-source projects from GitHub URLs into the workspace. Triggers when the user says "install this project as a [skill or project]" followed by a URL, with an optional project name. If it is "as a skill", install it as a skill and save it to ~/Workspace/.agents/skills/; otherwise install it as a project and save it to ~/Workspace/ThirdParty/.'
+description: Install a project or a skill from a URL. Triggers when the user says "install this project" or "install this skill" followed by a URL, with an optional project or skill name.
 ---
 
 # Project Installer
+
+## Environment
+
+The environment uses:
+- Nix 
+- Bun 
 
 ## Workflow
 
 ### 1. Gather required info
 
 - **URL**: required (from user message)
-- **Project name**: required — if not provided, prompt: "What should I name this project?"
-- **Type**: ask if not obvious — "Is this a Claude skill or a general project?"
-  - Skill → installs to `~/Workspace/.agents/skills/<name>`
-  - General → installs to `~/Workspace/ThirdParty/<name>`
+- **Project or Skill name**: optional — if not provided, derive the name from the open-source project.
 
-### 2. Check if already exists
+### 2. Install Directory
 
-```bash
-ls ~/Workspace/.agents/skills/<name>   # if skill
-ls ~/Workspace/ThirdParty/<name>       # if general
-```
+- If it is to install a project, install it in '~/Workspace/ThirdParty/<project-name>/'. 
+- If it is to install a skill, install it in '~/Workspace/.agents/skills/<skill-name>/'.
 
-If directory exists → inform the user and **stop**. Do not overwrite.
+If the directory exists → inform the user and **stop**. Do not overwrite.
 
 ### 3. Detect project type from URL/README
 
@@ -33,7 +34,15 @@ Before installing, fetch the repo's README or config files to determine language
 
 Detect: language (Go, Python, Node/TypeScript, Rust, etc.), package manager (npm → replace with bun), and build/run commands from the README.
 
-### 4. Create mise.toml
+### 4. Python Project
+
+If it is a Python project or needs to run Python programs, make sure:
+- We use uv
+- Create a virtual environment for this project (i.e., create .venv)
+
+### 5. Create mise.toml
+
+If it is to install a skill, do not create `mise.toml`.
 
 Write `mise.toml` to the project directory. Follow these rules:
 
@@ -42,30 +51,33 @@ Write `mise.toml` to the project directory. Follow these rules:
 - Include all applicable commands: from installing, setting up, to daily operations
 - Make sure mise.toml also documents how to sync the source code with the official Git repo
 
-### 5. Create OPERATIONS.md
+### 6. Environment Variables
+- If the project needs environment variables, define them in mise.local.toml.
+- Do not modify ~/.zshrc. In my system, ~/.zshrc is not used. It is moved to ~/.config/zsh/.zshrc. Note that ~/.config/zsh/.zshrc is read-only. Its content is determined by Nix.
 
-Write `OPERATIONS.md` for this project and save it to the project directory. The document should include:
+### 7. Create USER_MANUAL.md
+
+Write `USER_MANUAL.md` for this project and save it to the project directory. The document should include:
 - Quick start
 - Quick reference (in form of tables) to all mise commands
 - Sync source code with the official Git repo
 - Daily operations
 - (Add whatever appropriated)
 
-### 6. Confirm to user
+IMPORTANT: explain all the commands, steps, etc. Users know nothing about the project.
+Well documenting is very important!
+
+Note that if the original project already have 'USER_MANUAL.dm', use 'USER_MANUAL_NEW.md'.
+
+### 8. Confirm to user
 
 Report:
 - Install location
-- Tasks available via `mise run <task>`
+- Commands available via `mise run <command>`
 - Any manual steps needed (e.g., set env vars, API keys, symlinks)
-
-**For skill installs**, also remind the user to create the symlink:
-```bash
-ln -s ~/Workspace/.agents/skills/<name> ~/.claude/skills/<name>
-```
 
 ## Edge Cases
 
-- **No project name given**: prompt before doing anything
 - **Project already exists**: inform the user and stop — do not overwrite
 - **Private repo**: warn that git clone may require authentication
 - **No README**: infer language from file extensions in the repo (check GitHub's language stats or root files)

@@ -15,9 +15,9 @@ This workspace uses [pressly/goose v3](https://github.com/pressly/goose) for dat
 
 | Track | Migrator | Database | Location |
 |-------|----------|----------|----------|
-| **Project** | `goose.ProjectMigrator` | `PG_DB_Project` | `<project>/server/migrations/` |
-| **Shared** | `goose.SharedMigrator` | `PG_DB_Shared` | `shared/migrations/` |
-| **AutoTester** | `goose.AutoTesterMigrator` | `PG_DB_AutoTester` | `<project>/server/migrations/autotester/` |
+| **Project** | `goose.ProjectMigrator` | `ApiTypes.ProjectDBHandle` | `<project>/server/migrations/` |
+| **Shared** | `goose.SharedMigrator` | `ApiTypes.MigrationDBNandle` | `shared/migrations/` |
+| **AutoTester** | `goose.AutoTesterMigrator` | `AutotesterDBHandle` | `<project>/server/migrations/autotester/` |
 
 ---
 

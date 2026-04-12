@@ -1,0 +1,4 @@
+interface:
+  display_name: "Document Metric Extractor"
+  short_description: "Extract measurable metrics from document text and tables"
+  default_prompt: "Use $document-metric-extractor to identify and extract metrics from this input file and save them to kb.metrics."
