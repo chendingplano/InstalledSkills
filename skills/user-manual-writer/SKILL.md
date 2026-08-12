@@ -1,6 +1,6 @@
 ---
 name: user-manual-writer
-description: Use when creating, revising, translating, or localizing end-user manuals, especially when the requester needs accessible explanations, examples, keywords, metadata, versioned files, or Markdown, Typst, or HTML output.
+description: Use when creating, revising, translating, or localizing end-user manuals, including requests involving plain-language explanations, examples, keywords, metadata, change history, versions, or Markdown, Typst, and HTML output.
 ---
 
 # User Manual Writer
@@ -12,11 +12,11 @@ Create or modify user manuals for people who normally do not code. Explain what 
 ## Workflow
 
 1. Identify the operation: create a manual or modify an existing one.
-2. Gather the product, audience, scope, source material, requested language(s), format, filename, and requested version behavior.
-3. For modifications, locate the named manual under `KnowledgeStore/doc-repo/user-manuals`, read the complete current file, preserve accurate content, and apply only justified changes. Record the stated reason for each meaningful change.
+2. Gather the product, audience, scope, source material, requested language(s), format, manual name, version, change reason, and whether to retain the source as a prior version.
+3. For modifications, locate candidates under `/Users/cding/Workspace/KnowledgeStore/doc-repo/user-manuals`. Require the requester to identify the exact source when multiple languages, formats, or versions match; never guess which file to overwrite. Read the complete source, preserve accurate content, and apply only justified changes.
 4. Draft content in a format-neutral outline, then render it in the requested format.
 5. Review for plain language, useful examples, unsupported claims, consistent terminology, and audience fit.
-6. Save each language and format as a separate file under `KnowledgeStore/doc-repo/user-manuals`.
+6. Save each language and format as a separate file under `/Users/cding/Workspace/KnowledgeStore/doc-repo/user-manuals`.
 
 ## Audience and Content Rules
 
@@ -33,36 +33,62 @@ Accept requester-supplied keywords and preserve them unless they are irrelevant.
 
 ## Metadata and Versioning
 
-Place metadata near the beginning of every manual. Include, when known:
+Place metadata near the beginning of every manual. Use these field names:
 
-`Title`, `Language`, `Format`, `Version`, `Status`, `Author`, `Owner`, `Audience`, `Created`, `Last updated`, and `Keywords`.
+`title`, `language`, `format`, `version`, `status`, `author`, `owner`, `audience`, `create-time`, `last-modify-time`, and `keywords`.
 
-Use the current date for new or modified files. Do not guess people or dates; use `Not specified` or ask when the value is important. Start a new manual at `1.0`. For modifications, increment the version when requested or when the change is substantial; otherwise preserve the version and update `Last updated`. When generating a new version, include the version in the filename while keeping the language code immediately before the extension, for example `billing-guide-v2.0-en.md`.
+Use an ISO 8601 timestamp with timezone for `create-time` and `last-modify-time`. Set both when creating a manual. Preserve `create-time` and update only `last-modify-time` when modifying one. Do not guess people; use `Not specified` or ask when identity is important. Keep detailed modification information in Change Log rather than duplicating it in metadata.
 
-Always include a `## Change Log` section with newest entries first. Each entry records version, date, author or responsible party, reason, and a concise summary of changes. Preserve prior entries when modifying a manual.
+Accept versions containing one or more non-negative integer components separated by periods, matching `^[0-9]+(?:\.[0-9]+)*$`; examples include `1`, `1.0`, and `2.12.3`. Use a requested version exactly. When no version is specified, inspect versions for the same manual and language, compare components numerically, select the highest, and increment its final component by one (`1.9`, `1.10` → `1.11`; `2` → `3`). Use `1.0` when no prior version exists. Never compare versions as strings.
+
+Encode every version in its filename and keep filename, metadata, and Change Log versions identical. When the computed or requested version differs from the source version, create a new file and retain the source. Overwrite in place only when the requester identifies an exact versioned file and explicitly reuses that same version.
+
+Always include a format-appropriate Change Log section with newest entries first. Record version, timestamp, author or responsible party, reason, and a concise summary. Preserve prior entries when modifying a manual. Use `## Change Log` in Markdown, `== Change Log` in Typst, and a semantic `<section>` containing `<h2>Change Log</h2>` in HTML.
 
 ## Output Formats and Filenames
 
-Support exactly `markdown`, `typst`, and `html` unless the requester asks for another format and confirms an exception. Use these extensions:
+Support exactly `markdown`, `typst`, and `html` unless the requester asks for another format and confirms an exception. Default to Markdown when no format is specified. Use these extensions:
 
 - Markdown: `.md`
 - Typst: `.typ`
 - HTML: `.html`
 
-Use a lowercase, descriptive slug and always end the stem with the language code: `<slug>-<language>.<extension>` or `<slug>-v<version>-<language>.<extension>`. Examples: `account-overview-en.md`, `account-overview-es.html`, `account-overview-v2.0-en.typ`. For multiple languages, create one file per language; do not put several languages into one file unless explicitly requested.
+Default to English (`en`) when no language is specified. Use lowercase BCP 47-compatible language tags such as `en`, `es`, `zh-hans`, or `pt-br`. Use a lowercase descriptive slug and always name files `<slug>-v<version>-<language>.<extension>`, for example `account-overview-v1.0-en.md`, `account-overview-v2-es.html`, or `account-overview-v2.1-zh-hans.typ`. For multiple languages, create one file per language; do not combine languages unless explicitly requested.
 
 For Typst, use readable headings, lists, emphasis, and tables that compile cleanly. For HTML, produce a complete readable document with a title, metadata, semantic headings, lists, tables, and minimal accessible styling when useful. Keep the same content and metadata across formats.
 
 ## Modification Requests
 
-Use the requester’s manual name to identify the source file. Treat these as separate decisions: content changes, reason for change, keywords, language, format, and whether to overwrite or generate a new version. If the requested change conflicts with the current manual, flag the conflict rather than silently deleting established information. When a new version is requested, retain the old file and create the new version; otherwise modify the named file in place unless the requester says otherwise.
+Use the requester’s manual name to find candidates, then resolve the exact source by slug, version, language, and format. If more than one candidate remains, list the candidates and ask the requester to select one before writing. Treat content changes, reason, keywords, language, format, and version as separate inputs. Flag conflicts rather than silently deleting established information. Apply the version rules above to decide between a new file and an in-place update.
+
+## Quick Reference
+
+| Request omits | Default or action |
+|---|---|
+| Language | English (`en`) |
+| Format | Markdown (`.md`) |
+| Version, no prior manual | `1.0` |
+| Version, prior manuals exist | Increment the final component of the highest numeric version |
+| Exact source is ambiguous | Ask the requester to choose; do not write |
+
+Example: revising `billing-guide-v1.10-en.md` without a requested version produces `billing-guide-v1.11-en.md`, preserves the old file and its `create-time`, sets the new file's `create-time` and `last-modify-time` to the current timestamp, and adds a `1.11` Change Log entry.
+
+## Common Mistakes
+
+- Do not omit the version from a filename.
+- Do not reset `create-time` during an in-place modification.
+- Do not increment versions lexically (`1.9` is lower than `1.10`).
+- Do not select among ambiguous source files by assumption.
+- Do not use Markdown heading syntax in Typst or HTML output.
 
 ## Final Checklist
 
-- Correct output directory, format, extension, slug, and language suffix.
+- Correct absolute output directory, format, extension, slug, encoded version, and language suffix.
 - Metadata is present and internally consistent.
+- `create-time` is preserved for in-place changes; `last-modify-time` is current.
 - Keywords include supplied terms plus relevant generated terms.
 - Examples clarify the subject without assuming coding knowledge.
-- `Change Log` exists and is preserved or updated correctly.
+- The format-appropriate Change Log exists and is preserved or updated correctly.
 - New versions do not overwrite prior versions.
+- Ambiguous source matches are resolved by the requester before writing.
 - Every factual claim is supported by the provided source material or clearly marked for confirmation.

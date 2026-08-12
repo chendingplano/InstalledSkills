@@ -33,14 +33,32 @@ Keep the skill self-contained without placeholder scripts, references, or assets
 **Files:**
 - Create: `dist/user-manual-writer.zip`
 
-- [ ] **Step 1: Run quick validation**
+- [x] **Step 1: Run quick validation**
 
 Run: `python3 skills/skill-creator/scripts/quick_validate.py skills/user-manual-writer`
 
-- [ ] **Step 2: Package the validated skill**
+- [x] **Step 2: Package the validated skill**
 
 Run: `python3 skills/skill-creator/scripts/package_skill.py skills/user-manual-writer dist`
 
-- [ ] **Step 3: Inspect status and package contents**
+- [x] **Step 3: Inspect status and package contents**
 
 Run: `git status --short` and `unzip -l dist/user-manual-writer.zip`.
+
+### Task 3: Harden behavior after review
+
+**Files:**
+- Modify: `skills/user-manual-writer/SKILL.md`
+- Update: `dist/user-manual-writer.zip`
+
+- [x] **Step 1: Forward-test the original skill**
+
+Test defaults, ambiguous source selection, and numeric version generation in fresh read-only agent sessions.
+
+- [x] **Step 2: Fix the discovered behavioral gaps**
+
+Define English and Markdown defaults, exact metadata names and timestamps, absolute storage path, BCP 47 tags, deterministic version generation, versioned filenames, format-specific Change Log headings, and safe source selection.
+
+- [x] **Step 3: Re-run forward tests and package validation**
+
+Verify the same scenarios now follow the revised contract, then rebuild and inspect the package.
