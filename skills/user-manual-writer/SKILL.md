@@ -39,9 +39,9 @@ Place metadata near the beginning of every manual. Use these field names:
 
 Use an ISO 8601 timestamp with timezone for `create-time` and `last-modify-time`. Set both when creating a manual. Preserve `create-time` and update only `last-modify-time` when modifying one. Do not guess people; use `Not specified` or ask when identity is important. Keep detailed modification information in Change Log rather than duplicating it in metadata.
 
-Accept versions containing one or more non-negative integer components separated by periods, matching `^[0-9]+(?:\.[0-9]+)*$`; examples include `1`, `1.0`, and `2.12.3`. Use a requested version exactly. When no version is specified, inspect versions for the same manual and language, compare components numerically, select the highest, and increment its final component by one (`1.9`, `1.10` → `1.11`; `2` → `3`). Use `1.0` when no prior version exists. Never compare versions as strings.
+Accept versions containing one or more non-negative integer components separated by periods, matching `^[0-9]+(?:\.[0-9]+)*$`; examples include `1`, `1.0`, and `2.12.3`. Use a requested version exactly. When modifying an existing manual, preserve its current version and update it in place by default. Create a new versioned file only when the requester explicitly asks for a new version or explicitly provides a different version. Do not infer a new version from the absence of a version request. Use `1.0` when creating a manual with no prior version. Never compare versions as strings.
 
-Encode every version in its filename and keep filename, metadata, and Change Log versions identical. When the computed or requested version differs from the source version, create a new file and retain the source. Overwrite in place only when the requester identifies an exact versioned file and explicitly reuses that same version.
+Encode every version in its filename and keep filename, metadata, and Change Log versions identical. When the requester explicitly provides a different version or asks for a new version, create a new file and retain the source. Otherwise, overwrite the identified source file in place, preserving its version and `create-time`.
 
 Always include a format-appropriate Change Log section with newest entries first. Record version, timestamp, author or responsible party, reason, and a concise summary. Preserve prior entries when modifying a manual. Use `## Change Log` in Markdown, `== Change Log` in Typst, and a semantic `<section>` containing `<h2>Change Log</h2>` in HTML.
 
@@ -59,7 +59,7 @@ For Typst, use readable headings, lists, emphasis, and tables that compile clean
 
 ## Modification Requests
 
-Use the requester’s manual name to find candidates, then resolve the exact source by slug, version, language, and format. If more than one candidate remains, list the candidates and ask the requester to select one before writing. Treat content changes, reason, keywords, language, format, and version as separate inputs. Flag conflicts rather than silently deleting established information. Apply the version rules above to decide between a new file and an in-place update.
+Use the requester’s manual name to find candidates, then resolve the exact source by slug, version, language, and format. If more than one candidate remains, list the candidates and ask the requester to select one before writing. Treat content changes, reason, keywords, language, format, and version as separate inputs. Flag conflicts rather than silently deleting established information. For modifications, preserve the source version and update in place unless the requester explicitly asks for a new version or provides a different version.
 
 ## Quick Reference
 
@@ -68,16 +68,17 @@ Use the requester’s manual name to find candidates, then resolve the exact sou
 | Language | English (`en`) |
 | Format | Markdown (`.md`) |
 | Version, no prior manual | `1.0` |
-| Version, prior manuals exist | Increment the final component of the highest numeric version |
+| Version, modifying an existing manual | Preserve the source version and update in place |
+| New version explicitly requested | Use the requested version and retain the source |
 | Exact source is ambiguous | Ask the requester to choose; do not write |
 
-Example: revising `billing-guide-v1.10-en.md` without a requested version produces `billing-guide-v1.11-en.md`, preserves the old file and its `create-time`, sets the new file's `create-time` and `last-modify-time` to the current timestamp, and adds a `1.11` Change Log entry.
+Example: revising `billing-guide-v1.10-en.md` without a requested new version updates `billing-guide-v1.10-en.md` in place, preserves its `create-time`, updates `last-modify-time`, and adds a `1.10` Change Log entry. If the requester explicitly asks for version `1.11`, create `billing-guide-v1.11-en.md` and retain the `v1.10` source.
 
 ## Common Mistakes
 
 - Do not omit the version from a filename.
 - Do not reset `create-time` during an in-place modification.
-- Do not increment versions lexically (`1.9` is lower than `1.10`).
+- Do not create or increment a version unless the requester explicitly requests a new version or provides a different version.
 - Do not select among ambiguous source files by assumption.
 - Do not use Markdown heading syntax in Typst or HTML output.
 
@@ -89,6 +90,6 @@ Example: revising `billing-guide-v1.10-en.md` without a requested version produc
 - Keywords include supplied terms plus relevant generated terms.
 - Examples clarify the subject without assuming coding knowledge.
 - The format-appropriate Change Log exists and is preserved or updated correctly.
-- New versions do not overwrite prior versions.
+- Existing manuals are updated in place by default; new versions do not overwrite prior versions when explicitly requested.
 - Ambiguous source matches are resolved by the requester before writing.
 - Every factual claim is supported by the provided source material or clearly marked for confirmation.
