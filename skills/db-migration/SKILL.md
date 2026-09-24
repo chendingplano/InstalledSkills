@@ -92,17 +92,35 @@ if err := sharedgoose.RunSharedMigrations(ctx, logger, migrateCfg, sharedDB); er
 
 ### Step 5 — Test the migration
 
+**Never put the database password or a connection string on the command line.**
+goose echoes its arguments back in error messages (e.g. `goose run: "host=… password=…": no such
+command`), so one mistyped command prints the password into the terminal and the agent transcript.
+Command-line arguments are also visible to other users via `ps`. Instead, give the credentials to
+the Postgres driver through the standard `PG*` environment variables, and pass goose a connection
+string with no secrets (`sslmode=disable`). Do not `echo` or log these variables.
+
 ```bash
-# Verify status before applying
-goose -dir <project>/server/migrations postgres "$DATABASE_URL" status
+# Run from the project directory (ChenWeb/ or tax/); .env holds PG_USER_NAME, PG_PASSWORD, PG_DB_NAME
+set -a; source .env >/dev/null 2>&1; set +a
+export PGHOST="${PG_HOST:-localhost}" PGPORT="${PG_PORT:-5432}" PGUSER="$PG_USER_NAME" \
+       PGPASSWORD="${PG_PASSWORD:-$PGPASSWORD}" PGDATABASE="$PG_DB_NAME"
+export GOOSE_DRIVER=postgres GOOSE_DBSTRING="sslmode=disable"   # no secrets in here
 
-# Apply (also happens automatically on next server start)
-goose -dir <project>/server/migrations postgres "$DATABASE_URL" up
+# Project tables:  GOOSE_MIGRATION_DIR=$PWD/project_migrations  GOOSE_TABLE=project_db_migration
+# Shared tables:   GOOSE_MIGRATION_DIR=$PWD/shared_migrations   GOOSE_TABLE=shared.shared_db_migration
+export GOOSE_MIGRATION_DIR="$PWD/shared_migrations" GOOSE_TABLE=shared.shared_db_migration
 
-# Test rollback
-goose -dir <project>/server/migrations postgres "$DATABASE_URL" down
-goose -dir <project>/server/migrations postgres "$DATABASE_URL" up
+goose status          # verify before applying
+goose up              # apply (also happens automatically on next server start)
+goose down && goose up   # test rollback
 ```
+
+If `goose` isn't installed, install it to a scratch directory rather than using `go run … $ARGS`
+(zsh does not word-split a command held in a variable):
+`GOBIN=<scratch>/bin go install github.com/pressly/goose/v3/cmd/goose@v3.26.0`.
+
+If any command output might still contain a connection string, pipe it through
+`sed 's/password=[^ ]*/password=***/g'` before it reaches the terminal.
 
 ### Step 6 — Commit the migration file
 
