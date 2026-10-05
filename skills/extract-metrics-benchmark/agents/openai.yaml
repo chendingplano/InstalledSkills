@@ -1,0 +1,4 @@
+interface:
+  display_name: "Extract Metrics Benchmark"
+  short_description: "Build audited metric benchmarks from document lines"
+  default_prompt: "Use $extract-metrics-benchmark to extract and audit metrics for kb.inputs.id 123 and save the benchmark to testbed.metrics."
