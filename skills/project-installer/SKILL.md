@@ -19,8 +19,7 @@ The environment uses:
 - **Project or Skill name**: optional — if not provided, derive the name from the open-source project.
 
 ### 2. Install Directory
-
-- If it is to install a project, install it in '~/Workspace/ThirdParty/<project-name>/'. 
+- If it is to install a project, install it in '~/Workspace/ThirdParty-2/<project-name>/' unless users specify the directory. 
 - If it is to install a skill, install it in '~/Workspace/.agents/skills/<skill-name>/'.
 
 If the directory exists → inform the user and **stop**. Do not overwrite.

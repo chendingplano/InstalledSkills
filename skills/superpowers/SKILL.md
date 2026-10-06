@@ -1,6 +1,6 @@
 ---
 name: superpowers
-description: Use for software development work when you want the Superpowers workflow in Codex: route the task through the bundled 14 workflow skills for brainstorming, planning, TDD, debugging, code review, execution, verification, git worktrees, and branch completion.
+description: "Use for software development work when you want the Superpowers workflow in Codex: route the task through the bundled 14 workflow skills for brainstorming, planning, TDD, debugging, code review, execution, verification, git worktrees, and branch completion."
 ---
 
 # Superpowers for Codex
