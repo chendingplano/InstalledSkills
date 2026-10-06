@@ -3,6 +3,14 @@
 The version is declared in `SKILL.md` frontmatter (`metadata.version`) and stored on every
 `testbed.metrics` row as `skill_version`.
 
+## 1.2.0 — 2026-10-06
+
+- Rows also record `skill_name` (from SKILL.md `name`) and `model_name` (the model that ran the
+  skill, passed as `prepare --model-name`, required). New columns `testbed.metrics.skill_name` and
+  `model_name` (migration `20261006000003`). Run `22aa157c` backfilled as `gpt-6.1-sol`, found in its
+  Codex session log.
+- No change to annotation rules.
+
 ## 1.1.0 — 2026-10-06
 
 - Skill is now versioned. `benchmark_io.py prepare` writes `skill_version` into the payload;

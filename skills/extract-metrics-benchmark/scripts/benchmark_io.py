@@ -25,14 +25,24 @@ CLASSES = {'observation', 'requirement', 'target', 'reference', 'design_capabili
 LOCATIONS = {'sentence', 'bullet', 'table_row', 'table_cell', 'heading_context', 'mixed'}
 
 
-def skill_version():
-    """The skill version is declared once, in SKILL.md frontmatter (metadata.version)."""
+def skill_frontmatter():
+    """Skill name and version, declared once in SKILL.md frontmatter (name, metadata.version)."""
     text = Path(__file__).resolve().parent.parent.joinpath('SKILL.md').read_text(encoding='utf-8')
-    match = re.search(r'^---\n.*?^\s+version:\s*"?([0-9]+\.[0-9]+\.[0-9]+)"?\s*$.*?^---$',
-                      text, re.S | re.M)
-    if not match:
-        raise ValueError('SKILL.md frontmatter has no metadata.version')
-    return match.group(1)
+    front = re.match(r'---\n(.*?)\n---\n', text, re.S)
+    name = front and re.search(r'^name:\s*(\S+)\s*$', front.group(1), re.M)
+    version = front and re.search(r'^\s+version:\s*"?([0-9]+\.[0-9]+\.[0-9]+)"?\s*$',
+                                  front.group(1), re.M)
+    if not (name and version):
+        raise ValueError('SKILL.md frontmatter needs name and metadata.version')
+    return name.group(1), version.group(1)
+
+
+def skill_name():
+    return skill_frontmatter()[0]
+
+
+def skill_version():
+    return skill_frontmatter()[1]
 
 
 def require(condition, message):
@@ -82,10 +92,13 @@ def load_lines(record):
     return path, hashlib.sha256(raw).hexdigest(), lines
 
 
-def prepare(record):
+def prepare(record, model_name):
+    require(isinstance(model_name, str) and model_name.strip(),
+            'model_name required: the exact ID of the model running this skill')
     path, digest, lines = load_lines(record)
     return {'record_id': record['id'], 'benchmark_run_id': str(uuid.uuid4()),
-            'skill_version': skill_version(),
+            'skill_name': skill_name(), 'skill_version': skill_version(),
+            'model_name': model_name.strip(),
             'source_filename': str(path), 'source_sha256': digest,
             'language': '', 'completeness_review': '', 'correctness_review': '',
             'limitations': [], 'coverage': [], 'candidates': [], 'metrics': []}
@@ -121,6 +134,9 @@ def validate(record, payload):
     require(payload.get('skill_version') == skill_version(),
             f"Payload skill_version {payload.get('skill_version')!r} is not the current skill "
             f'version {skill_version()}; re-run the review under the current skill')
+    require(payload.get('skill_name') == skill_name(), 'Payload skill_name does not match this skill')
+    require(isinstance(payload.get('model_name'), str) and payload['model_name'].strip(),
+            'Missing model_name')
     for key in ('language', 'completeness_review', 'correctness_review'):
         require(isinstance(payload.get(key), str) and payload[key].strip(), f'Missing {key}')
     require(payload.get('limitations') == [], 'Unresolved limitations prevent benchmark publication')
@@ -207,7 +223,8 @@ def validate(record, payload):
         metadata = record.get('doc_metadata') or {}
         row.update(input_record_id=record['id'], benchmark_run_id=payload['benchmark_run_id'],
                    source_filename=str(path), source_sha256=digest,
-                   skill_version=payload['skill_version'],
+                   skill_name=payload['skill_name'], skill_version=payload['skill_version'],
+                   model_name=payload['model_name'],
                    ext_info={'schema_version': '2', 'source': 'independent-benchmark',
                              'language': payload['language'], 'reviewed_at': now,
                              'title': metadata.get('title') or record.get('title') or '',
@@ -248,7 +265,8 @@ def save_sql(record, payload, rows):
     # Fixed SQL identifiers and quoted JSON data; psql receives no credentials or SQL on argv.
     fields = TEXT_FIELDS + ARRAY_FIELDS + EN_FIELDS + ['metric_keywords_en', 'source_table_rows',
               'confidence', 'is_explicit_metric', 'value_min', 'value_max', 'input_record_id',
-              'benchmark_run_id', 'source_filename', 'source_sha256', 'skill_version', 'ext_info']
+              'benchmark_run_id', 'source_filename', 'source_sha256', 'skill_name', 'skill_version', 'model_name',
+              'ext_info']
     columns = ', '.join(fields)
     identity = {key: record.get(key) for key in ('result_filename', 'staging_filename', 'parser_name')}
     return f'''BEGIN;
@@ -273,11 +291,12 @@ def main():
     parser.add_argument('--record', required=True, type=Path, help='JSON exported from kb.inputs')
     parser.add_argument('--payload', type=Path, help='Reviewed benchmark JSON')
     parser.add_argument('--output', type=Path, help='New payload path for prepare')
+    parser.add_argument('--model-name', help='prepare: exact ID of the model running this skill')
     args = parser.parse_args()
     record = json.loads(args.record.read_text(encoding='utf-8'))
     if args.action == 'prepare':
         require(args.output, '--output required for prepare')
-        payload = prepare(record)
+        payload = prepare(record, args.model_name or '')
         with args.output.open('x', encoding='utf-8') as handle:
             json.dump(payload, handle, ensure_ascii=False, indent=2)
         _, _, lines = load_lines(record)
@@ -292,7 +311,8 @@ def main():
                        text=True, check=True)
     print(json.dumps({'action': args.action, 'record_id': record['id'],
                       'benchmark_run_id': payload['benchmark_run_id'],
-                      'skill_version': payload['skill_version'], 'metrics': len(rows)}))
+                      'skill_name': payload['skill_name'], 'skill_version': payload['skill_version'],
+                      'model_name': payload['model_name'], 'metrics': len(rows)}))
 
 
 if __name__ == '__main__':

@@ -27,7 +27,7 @@ class PostgresIOTests(unittest.TestCase):
         workspace = script.parents[4]
         migrations = [path.read_text().split('-- +goose Down') for path in
                       sorted((workspace / 'ChenWeb/project_migrations').glob('*testbed_metrics.sql'))]
-        self.assertGreaterEqual(len(migrations), 2)
+        self.assertGreaterEqual(len(migrations), 3)
         up = '\n'.join(m[0] for m in migrations)
         down = '\n'.join(m[1] for m in reversed(migrations))
         with tempfile.TemporaryDirectory(prefix='metric-benchmark-pg-') as scratch:
@@ -71,6 +71,8 @@ class PostgresIOTests(unittest.TestCase):
                 for key, value in rows[0].items():
                     self.assertEqual(saved[0][key], value, key)
                 self.assertEqual(saved[0]['skill_version'], fixture.io.skill_version())
+                self.assertEqual(saved[0]['skill_name'], fixture.io.skill_name())
+                self.assertEqual(saved[0]['model_name'], 'test-model')
                 sql(save, succeeds=False)
                 sql(fixture.io.save_sql(dict(record, staging_filename='wrong.pdf'),
                                         fixture.payload, rows), succeeds=False)

@@ -25,7 +25,7 @@ class BenchmarkIOTests(unittest.TestCase):
             '1\t1\theading\tArial\t12\t[0,0,100,20]\tPump requirements\n'
             '2\t1\tparagraph\tArial\t10\t[0,20,100,40]\tPressure shall be ≥ 0.5 MPa.\n',
             encoding='utf-8')
-        self.payload = self.io.prepare(self.record)
+        self.payload = self.io.prepare(self.record, 'test-model')
         self.payload.update(language='en',
                             completeness_review='Read every line twice; one pressure assertion.',
                             correctness_review='Verified subject, ≥, 0.5, MPa and supporting lines.')
@@ -83,7 +83,7 @@ class BenchmarkIOTests(unittest.TestCase):
                         '1\t1\tparagraph\tArial\t10\t[0,0,1,1]\ta\n' * 2):
             self.source.write_text(content, encoding='utf-8')
             with self.assertRaises(ValueError):
-                self.io.prepare(self.record)
+                self.io.prepare(self.record, 'test-model')
 
     def test_unicode_line_separator_inside_content_does_not_create_records(self):
         text = self.source.read_text().replace('Pressure shall', 'Note\u2028Pressure shall')
@@ -116,7 +116,7 @@ class BenchmarkIOTests(unittest.TestCase):
         self.source.write_text(
             '1\t1\theading\tArial\t12\t[0,0,100,20]\tPump requirements\n'
             f'2\t1\tparagraph\tArial\t10\t[0,20,100,40]\t{clause}\n', encoding='utf-8')
-        self.payload['source_sha256'] = self.io.prepare(self.record)['source_sha256']
+        self.payload['source_sha256'] = self.io.prepare(self.record, 'test-model')['source_sha256']
         metric = self.payload['metrics'][0]
         metric.update(metric_name='Backup facilities configuration', metric_subject='Backup facilities',
                       value_range_type='qualitative', value_class='reference', metric_unit='',
@@ -133,7 +133,7 @@ class BenchmarkIOTests(unittest.TestCase):
         self.source.write_text(
             '1\t1\theading\tArial\t12\t[0,0,100,20]\tPump requirements\n'
             f'2\t1\ttable\tArial\t10\t[0,20,100,40]\t{table}\n', encoding='utf-8')
-        self.payload['source_sha256'] = self.io.prepare(self.record)['source_sha256']
+        self.payload['source_sha256'] = self.io.prepare(self.record, 'test-model')['source_sha256']
         metric = self.payload['metrics'][0]
         metric.update(location_type='table_cell', source_table_rows=[{'line': 2, 'rows': ['r1']}],
                       evidence=[{'line': 2, 'quote': '<td>Normal</td><td>0.5</td>'}],
@@ -153,6 +153,19 @@ class BenchmarkIOTests(unittest.TestCase):
         for stale in ('0.0.1', None):
             payload = copy.deepcopy(self.payload)
             payload['skill_version'] = stale
+            with self.assertRaises(ValueError):
+                self.io.validate(self.record, payload)
+
+    def test_skill_name_and_model_name_are_recorded(self):
+        self.assertEqual(self.payload['skill_name'], 'extract-metrics-benchmark')
+        rows = self.io.validate(self.record, self.payload)
+        self.assertEqual(rows[0]['skill_name'], 'extract-metrics-benchmark')
+        self.assertEqual(rows[0]['model_name'], 'test-model')
+        with self.assertRaises(ValueError):
+            self.io.prepare(self.record, ' ')
+        for key, value in (('model_name', ''), ('skill_name', 'other-skill')):
+            payload = copy.deepcopy(self.payload)
+            payload[key] = value
             with self.assertRaises(ValueError):
                 self.io.validate(self.record, payload)
 
