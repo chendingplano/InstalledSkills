@@ -25,24 +25,33 @@ CLASSES = {'observation', 'requirement', 'target', 'reference', 'design_capabili
 LOCATIONS = {'sentence', 'bullet', 'table_row', 'table_cell', 'heading_context', 'mixed'}
 
 
-def skill_frontmatter():
-    """Skill name and version, declared once in SKILL.md frontmatter (name, metadata.version)."""
-    text = Path(__file__).resolve().parent.parent.joinpath('SKILL.md').read_text(encoding='utf-8')
-    front = re.match(r'---\n(.*?)\n---\n', text, re.S)
-    name = front and re.search(r'^name:\s*(\S+)\s*$', front.group(1), re.M)
-    version = front and re.search(r'^\s+version:\s*"?([0-9]+\.[0-9]+\.[0-9]+)"?\s*$',
-                                  front.group(1), re.M)
-    if not (name and version):
-        raise ValueError('SKILL.md frontmatter needs name and metadata.version')
-    return name.group(1), version.group(1)
+SKILL_DIR = Path(__file__).resolve().parent.parent
 
 
 def skill_name():
-    return skill_frontmatter()[0]
+    """The skill name, declared once in SKILL.md frontmatter."""
+    text = SKILL_DIR.joinpath('SKILL.md').read_text(encoding='utf-8')
+    front = re.match(r'---\n(.*?)\n---\n', text, re.S)
+    name = front and re.search(r'^name:\s*(\S+)\s*$', front.group(1), re.M)
+    if not name:
+        raise ValueError('SKILL.md frontmatter has no name')
+    return name.group(1)
 
 
-def skill_version():
-    return skill_frontmatter()[1]
+def rules_manifest():
+    return json.loads(SKILL_DIR.joinpath('rules', 'versions.json').read_text(encoding='utf-8'))
+
+
+def resolve_rules(version=None):
+    """Return (version, rules_sha256) for a released rules version; refuse edited rules files."""
+    manifest = rules_manifest()
+    version = version or manifest['default']
+    entry = manifest['versions'].get(version)
+    require(entry, f'Unknown skill version {version!r}; released: {sorted(manifest["versions"])}')
+    digest = hashlib.sha256(SKILL_DIR.joinpath('rules', entry['rules']).read_bytes()).hexdigest()
+    require(digest == entry['sha256'],
+            f'rules/{entry["rules"]} differs from released version {version}; released rules are frozen')
+    return version, digest
 
 
 def require(condition, message):
@@ -92,12 +101,13 @@ def load_lines(record):
     return path, hashlib.sha256(raw).hexdigest(), lines
 
 
-def prepare(record, model_name):
+def prepare(record, model_name, version=None):
     require(isinstance(model_name, str) and model_name.strip(),
             'model_name required: the exact ID of the model running this skill')
+    version, rules_sha256 = resolve_rules(version)
     path, digest, lines = load_lines(record)
     return {'record_id': record['id'], 'benchmark_run_id': str(uuid.uuid4()),
-            'skill_name': skill_name(), 'skill_version': skill_version(),
+            'skill_name': skill_name(), 'skill_version': version, 'rules_sha256': rules_sha256,
             'model_name': model_name.strip(),
             'source_filename': str(path), 'source_sha256': digest,
             'language': '', 'completeness_review': '', 'correctness_review': '',
@@ -131,9 +141,12 @@ def validate(record, payload):
     uuid.UUID(payload['benchmark_run_id'])
     require(payload['source_filename'] == str(path) and payload['source_sha256'] == digest,
             'Source path/hash changed; re-extract and review this source')
-    require(payload.get('skill_version') == skill_version(),
-            f"Payload skill_version {payload.get('skill_version')!r} is not the current skill "
-            f'version {skill_version()}; re-run the review under the current skill')
+    _, rules_sha256 = resolve_rules(payload.get('skill_version') or '-')
+    # Payloads prepared before rules_sha256 existed (tooling <= 1.2.0) carry no hash; the
+    # manifest check above already proves the rules file is the released one.
+    payload_rules = payload.get('rules_sha256', rules_sha256)
+    require(payload_rules == rules_sha256,
+            'Payload rules_sha256 does not match the released rules for its skill_version')
     require(payload.get('skill_name') == skill_name(), 'Payload skill_name does not match this skill')
     require(isinstance(payload.get('model_name'), str) and payload['model_name'].strip(),
             'Missing model_name')
@@ -227,6 +240,7 @@ def validate(record, payload):
                    model_name=payload['model_name'],
                    ext_info={'schema_version': '2', 'source': 'independent-benchmark',
                              'language': payload['language'], 'reviewed_at': now,
+                             'rules_sha256': payload_rules,
                              'title': metadata.get('title') or record.get('title') or '',
                              'doc_no': metadata.get('doc_no') or record.get('doc_no') or '',
                              'evidence': evidence,
@@ -292,11 +306,12 @@ def main():
     parser.add_argument('--payload', type=Path, help='Reviewed benchmark JSON')
     parser.add_argument('--output', type=Path, help='New payload path for prepare')
     parser.add_argument('--model-name', help='prepare: exact ID of the model running this skill')
+    parser.add_argument('--skill-version', help='prepare: released rules version (default: rules/versions.json default)')
     args = parser.parse_args()
     record = json.loads(args.record.read_text(encoding='utf-8'))
     if args.action == 'prepare':
         require(args.output, '--output required for prepare')
-        payload = prepare(record, args.model_name or '')
+        payload = prepare(record, args.model_name or '', args.skill_version)
         with args.output.open('x', encoding='utf-8') as handle:
             json.dump(payload, handle, ensure_ascii=False, indent=2)
         _, _, lines = load_lines(record)

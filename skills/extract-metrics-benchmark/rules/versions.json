@@ -1,0 +1,23 @@
+{
+  "default": "1.0.0",
+  "versions": {
+    "1.0.0": {
+      "rules": "1.0.0.md",
+      "sha256": "d22e92a4652855c64161e43151d4b468c1bb71da995071a7a6658756f1d3fae6",
+      "released": "2026-10-06",
+      "notes": "Original rules (jj commit 9e18)."
+    },
+    "1.1.0": {
+      "rules": "1.0.0.md",
+      "sha256": "d22e92a4652855c64161e43151d4b468c1bb71da995071a7a6658756f1d3fae6",
+      "released": "2026-10-06",
+      "notes": "Tooling-only release (skill_version column); rules identical to 1.0.0."
+    },
+    "1.2.0": {
+      "rules": "1.0.0.md",
+      "sha256": "d22e92a4652855c64161e43151d4b468c1bb71da995071a7a6658756f1d3fae6",
+      "released": "2026-10-06",
+      "notes": "Tooling-only release (skill_name, model_name columns); rules identical to 1.0.0."
+    }
+  }
+}

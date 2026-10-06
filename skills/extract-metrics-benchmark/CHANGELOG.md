@@ -1,26 +1,37 @@
 # Changelog — extract-metrics-benchmark
 
-The version is declared in `SKILL.md` frontmatter (`metadata.version`) and stored on every
-`testbed.metrics` row as `skill_version`.
+Two kinds of change are tracked separately:
 
-## 1.2.0 — 2026-10-06
+- **Rules versions** — the annotation rules in `rules/<version>.md`, frozen once released and listed
+  with their SHA-256 in `rules/versions.json`. `testbed.metrics.skill_version` is the rules version a
+  run used. Any released version can be run again (`prepare --skill-version <version>`).
+- **Tooling changes** — `SKILL.md` procedure, `references/`, `scripts/`, storage. Shared by all
+  versions and always the latest; they must keep every released rules version runnable.
 
-- Rows also record `skill_name` (from SKILL.md `name`) and `model_name` (the model that ran the
-  skill, passed as `prepare --model-name`, required). New columns `testbed.metrics.skill_name` and
-  `model_name` (migration `20261006000003`). Run `22aa157c` backfilled as `gpt-6.1-sol`, found in its
-  Codex session log.
-- No change to annotation rules.
+## Rules versions
 
-## 1.1.0 — 2026-10-06
+| Version | Rules file | Notes |
+|---|---|---|
+| 1.0.0 | `rules/1.0.0.md` | Original rules (jj commit 9e18). Known problems: devdoc `2026100601-devdoc-gold-metrics-416-review`. |
+| 1.1.0 | `rules/1.0.0.md` | Alias: released as a tooling-only change (skill_version column); rules identical to 1.0.0. Used by run `e6bd8f49` (record 753). |
+| 1.2.0 | `rules/1.0.0.md` | Alias: released as a tooling-only change (skill_name, model_name columns); rules identical to 1.0.0. |
 
-- Skill is now versioned. `benchmark_io.py prepare` writes `skill_version` into the payload;
-  `validate` rejects a payload prepared under a different version; `save` stores it in the new
-  `testbed.metrics.skill_version` column (migration `20261006000002`).
-- No change to annotation rules.
+Default: 1.0.0. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
+because rows were already saved under those labels.
 
-## 1.0.0 — 2026-10-06
+## Tooling changes
 
-- Initial skill (jj commit 9e18). Benchmark run `22aa157c-d712-46be-abc8-d7f195cff483`
-  (record 416, 134 rows) was produced by this version; its rows were backfilled with
-  `skill_version = '1.0.0'`. Known rule problems are documented in devdoc
-  `2026100601-devdoc-gold-metrics-416-review` (pending a fix release).
+### 2026-10-06 — runnable versions
+- Rules moved out of `SKILL.md` into frozen `rules/<version>.md` + `rules/versions.json`.
+- `prepare --skill-version <v>` selects a released version (default from the manifest) and refuses an
+  unknown version or an edited rules file; `rules_sha256` is stored in the payload and in
+  `ext_info.rules_sha256`. Payloads prepared by older tooling (no hash) still validate.
+
+### 2026-10-06 — skill_name and model_name (labelled 1.2.0)
+- `testbed.metrics.skill_name`, `model_name` (`TEXT NOT NULL`, migration `20261006000003`);
+  `prepare --model-name` required. Runs `22aa157c` and `e6bd8f49` backfilled as `gpt-6.1-sol` from
+  their Codex session log.
+
+### 2026-10-06 — skill_version (labelled 1.1.0)
+- `testbed.metrics.skill_version` (`TEXT NOT NULL`, migration `20261006000002`); run `22aa157c`
+  backfilled as `1.0.0`.

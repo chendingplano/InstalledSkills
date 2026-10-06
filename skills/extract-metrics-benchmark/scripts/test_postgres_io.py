@@ -70,7 +70,7 @@ class PostgresIOTests(unittest.TestCase):
                 self.assertEqual(len(saved), 1)
                 for key, value in rows[0].items():
                     self.assertEqual(saved[0][key], value, key)
-                self.assertEqual(saved[0]['skill_version'], fixture.io.skill_version())
+                self.assertEqual(saved[0]['skill_version'], fixture.io.rules_manifest()['default'])
                 self.assertEqual(saved[0]['skill_name'], fixture.io.skill_name())
                 self.assertEqual(saved[0]['model_name'], 'test-model')
                 sql(save, succeeds=False)

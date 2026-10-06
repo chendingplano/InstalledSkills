@@ -169,6 +169,41 @@ class BenchmarkIOTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 self.io.validate(self.record, payload)
 
+    def test_every_released_rules_file_is_unchanged(self):
+        for version in self.io.rules_manifest()['versions']:
+            self.assertEqual(self.io.resolve_rules(version)[0], version)
+
+    def test_named_version_is_run_and_recorded(self):
+        payload = self.io.prepare(self.record, 'test-model', '1.0.0')
+        payload.update({k: self.payload[k] for k in ('language', 'completeness_review',
+                        'correctness_review', 'coverage', 'candidates', 'metrics')})
+        rows = self.io.validate(self.record, payload)
+        self.assertEqual(rows[0]['skill_version'], '1.0.0')
+        self.assertEqual(rows[0]['ext_info']['rules_sha256'], payload['rules_sha256'])
+        with self.assertRaises(ValueError):
+            self.io.prepare(self.record, 'test-model', '9.9.9')
+
+    def test_edited_released_rules_are_refused(self):
+        import shutil
+        original = self.io.SKILL_DIR
+        copy_dir = Path(self.tmp.name) / 'skill'
+        shutil.copytree(original, copy_dir, ignore=shutil.ignore_patterns('__pycache__'))
+        version = self.io.rules_manifest()['default']
+        rules = copy_dir / 'rules' / self.io.rules_manifest()['versions'][version]['rules']
+        rules.write_text(rules.read_text() + '\nEdited.\n')
+        self.io.SKILL_DIR = copy_dir
+        self.addCleanup(setattr, self.io, 'SKILL_DIR', original)
+        with self.assertRaises(ValueError):
+            self.io.prepare(self.record, 'test-model')
+        with self.assertRaises(ValueError):
+            self.io.validate(self.record, self.payload)
+
+    def test_payload_without_rules_hash_from_older_tooling_still_validates(self):
+        del self.payload['rules_sha256']
+        rows = self.io.validate(self.record, self.payload)
+        self.assertEqual(rows[0]['ext_info']['rules_sha256'],
+                         self.io.resolve_rules(self.payload['skill_version'])[1])
+
     def test_sql_keeps_quotes_as_data(self):
         self.payload['metrics'][0]['metric_desc'] = "Pump's value'; DROP TABLE kb.metrics; --"
         rows = self.io.validate(self.record, self.payload)

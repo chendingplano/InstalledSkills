@@ -17,6 +17,7 @@ SQL
 
 python3 .agents/skills/extract-metrics-benchmark/scripts/benchmark_io.py prepare \
   --record /tmp/metrics-123-record.json --output /tmp/metrics-123-benchmark.json \
+  --skill-version <released version, default from rules/versions.json> \
   --model-name <exact ID of the model running this skill> > /tmp/metrics-123-source.json
 ```
 
@@ -32,6 +33,7 @@ Populate the prepared payload; retain its ID/path/hash/UUID/skill name/skill ver
   "benchmark_run_id": "<UUID from prepare>",
   "skill_name": "extract-metrics-benchmark",
   "skill_version": "<version from prepare>",
+  "rules_sha256": "<SHA-256 of that version's rules file, from prepare>",
   "model_name": "<from prepare --model-name>",
   "source_filename": "<resolved working .txt path>",
   "source_sha256": "<SHA-256 from prepare>",
@@ -94,7 +96,7 @@ Use **storage names** (`metric_subject`, `metric_desc`, `metric_context`, `metri
 | `metric_categories` | One or more meaningful keys, never hierarchy paths |
 | `annotation_notes` | Optional source-interpretation, tolerance/comparator, table-context or category rationale; saved in `ext_info` |
 
-For non-English sources add applicable `metric_name_en`, `metric_subject_en`, `metric_desc_en`, `metric_context_en`, `metric_keywords_en`, `metric_unit_en`, `value_class_en`. English rows store them null. The helper supplies document/run IDs, filename/hash, `skill_name` and `skill_version` (from `SKILL.md` frontmatter `name` and `metadata.version`; validation fails if the payload was prepared under another skill or version), `model_name` (from `prepare --model-name`; required) and `ext_info` (language, schema version `2`, evidence, ledgers and reviews). Title/doc number use `doc_metadata` with top-level fallback. It records only the model ID it is given and generates no prompt claims or production event IDs.
+For non-English sources add applicable `metric_name_en`, `metric_subject_en`, `metric_desc_en`, `metric_context_en`, `metric_keywords_en`, `metric_unit_en`, `value_class_en`. English rows store them null. The helper supplies document/run IDs, filename/hash, `skill_name` (from `SKILL.md` frontmatter `name`), `skill_version` and `rules_sha256` (from `prepare --skill-version`, checked against `rules/versions.json`; validation fails for an unknown version or an edited released rules file; the hash is kept in `ext_info.rules_sha256`), `model_name` (from `prepare --model-name`; required) and `ext_info` (language, schema version `2`, evidence, ledgers and reviews). Title/doc number use `doc_metadata` with top-level fallback. It records only the model ID it is given and generates no prompt claims or production event IDs.
 
 ## Table provisioning and save
 
