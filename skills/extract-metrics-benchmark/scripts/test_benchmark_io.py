@@ -45,9 +45,16 @@ class BenchmarkIOTests(unittest.TestCase):
             'threshold_or_target': 'Pressure shall be ≥ 0.5 MPa.',
             'measurement_frequency': '', 'condition': '', 'metric_categories': ['pressure'],
             'confidence': 1.0, 'is_explicit_metric': True, 'table_name_or_section': 'Pump requirements',
-            'reasoning_tags': ['has_threshold'],
+            'reasoning_tags': ['has_threshold', 'kind:requirement_with_criterion'],
             'evidence': [{'line': 2, 'quote': 'Pressure shall be ≥ 0.5 MPa.'}]
         }]
+
+    def pinned(self, version):
+        """The fixture payload prepared under a named rules version."""
+        payload = self.io.prepare(self.record, 'test-model', version)
+        payload.update({k: copy.deepcopy(self.payload[k]) for k in (
+            'language', 'completeness_review', 'correctness_review', 'coverage', 'candidates', 'metrics')})
+        return payload
 
     def test_valid_unicode_source_and_evidence(self):
         rows = self.io.validate(self.record, self.payload)
@@ -121,7 +128,7 @@ class BenchmarkIOTests(unittest.TestCase):
         metric.update(metric_name='Backup facilities configuration', metric_subject='Backup facilities',
                       value_range_type='qualitative', value_class='reference', metric_unit='',
                       metric_value='', is_explicit_metric=False, threshold_or_target=clause,
-                      reasoning_tags=['external_reference', 'cited_doc:CJJ 27'],
+                      reasoning_tags=['external_reference', 'cited_doc:CJJ 27', 'kind:delegated_requirement'],
                       evidence=[{'line': 2, 'quote': clause}])
         self.assertEqual(self.io.validate(self.record, self.payload)[0]['value_class'], 'reference')
         metric['metric_value'] = '27'
@@ -226,7 +233,7 @@ class BenchmarkIOTests(unittest.TestCase):
                          self.io.resolve_rules(self.payload['skill_version'])[1])
 
     def test_rules_2_require_a_matching_rule_id_per_candidate(self):
-        self.assertEqual(self.payload['skill_version'], '2.0.0')
+        self.payload = self.pinned('2.0.0')
         self.assertTrue({'A1', 'A6', 'X1', 'X14', 'D1'} <= self.io.rule_ids('2.0.0'))
         self.assertEqual(self.io.rule_ids('1.0.0'), set())
         self.io.validate(self.record, self.payload)
@@ -241,6 +248,7 @@ class BenchmarkIOTests(unittest.TestCase):
         self.io.validate(self.record, self.payload)
 
     def test_rules_2_bounds_tags_and_definitions(self):
+        self.payload = self.pinned('2.0.0')
         metric = self.payload['metrics'][0]
         for field, value in (('metric_value', '≥0.5'), ('metric_value', '<100')):
             payload = copy.deepcopy(self.payload)
@@ -258,6 +266,73 @@ class BenchmarkIOTests(unittest.TestCase):
             mutate(payload['metrics'][0])
             with self.assertRaises(ValueError):
                 self.io.validate(self.record, payload)
+
+    def test_rules_2_0_payloads_need_no_statement_kind(self):
+        payload = self.pinned('2.0.0')
+        payload['metrics'][0]['reasoning_tags'] = ['has_threshold']
+        self.io.validate(self.record, payload)
+
+    def test_statement_kind_matches_the_application_classifier(self):
+        cases = (
+            ({'value_class': 'requirement', 'value_range_type': 'upper_bound'}, 'requirement_with_criterion'),
+            ({'value_class': 'target', 'value_range_type': 'exact'}, 'requirement_with_criterion'),
+            ({'value_class': 'requirement', 'value_range_type': 'limit_absent'}, 'requirement_value_open'),
+            ({'value_class': 'requirement', 'value_range_type': 'qualitative'}, 'inspection_requirement'),
+            ({'value_class': 'reference', 'value_range_type': 'qualitative',
+              'reasoning_tags': ['cited_doc:CJJ 52']}, 'delegated_requirement'),
+            ({'value_class': 'requirement', 'value_range_type': 'exact',
+              'reasoning_tags': ['test_condition']}, 'test_parameter'),
+            ({'value_class': 'definition', 'value_range_type': 'upper_bound',
+              'formula_or_definition': 'GI < 100% means phytotoxic'}, 'metric_definition'),
+            ({'value_class': 'definition', 'value_range_type': 'qualitative'}, 'definition'),
+            ({'value_class': 'observation', 'value_range_type': 'exact'}, 'metric_value'),
+            ({'value_class': 'design_capability', 'value_range_type': 'qualitative'}, 'observation'),
+            ({'value_class': 'other', 'value_range_type': 'exact'}, 'unclassified'),
+        )
+        for fields, kind in cases:
+            row = {'reasoning_tags': [], 'formula_or_definition': '', **fields}
+            with self.subTest(row=row):
+                self.assertEqual(self.io.statement_kind(row), kind)
+
+    def test_rules_2_1_require_a_matching_statement_kind(self):
+        self.assertEqual(self.payload['skill_version'], '2.1.0')
+        self.io.validate(self.record, self.payload)
+        for tags in (['has_threshold'],
+                     ['kind:requirement_with_criterion', 'kind:metric_value'],
+                     ['kind:inspection_requirement'],
+                     ['kind:not_a_kind']):
+            payload = copy.deepcopy(self.payload)
+            payload['metrics'][0]['reasoning_tags'] = tags
+            with self.subTest(tags=tags), self.assertRaises(ValueError):
+                self.io.validate(self.record, payload)
+
+    def test_rules_2_1_interpretation_cutoff_is_a_definition_bound(self):
+        metric = self.payload['metrics'][0]
+        metric.update(value_class='definition', formula_or_definition='≥ 0.5 MPa reads as adequate',
+                      reasoning_tags=['interpretation_bound', 'kind:metric_definition'])
+        self.io.validate(self.record, self.payload)
+        payload = copy.deepcopy(self.payload)
+        payload['metrics'][0].update(value_class='reference', formula_or_definition='',
+                                     reasoning_tags=['interpretation_bound', 'kind:metric_value'])
+        with self.assertRaises(ValueError):
+            self.io.validate(self.record, payload)
+
+    def test_rules_2_1_cited_doc_identifier_has_a_space(self):
+        clause = 'Backup facilities shall comply with NY884.'
+        self.source.write_text(
+            '1\t1\theading\tArial\t12\t[0,0,100,20]\tPump requirements\n'
+            f'2\t1\tparagraph\tArial\t10\t[0,20,100,40]\t{clause}\n', encoding='utf-8')
+        self.payload['source_sha256'] = self.io.prepare(self.record, 'test-model')['source_sha256']
+        self.payload['metrics'][0].update(
+            metric_name='Backup facilities', metric_subject='Backup facilities',
+            value_range_type='qualitative', value_class='reference', metric_unit='', metric_value='',
+            is_explicit_metric=False, threshold_or_target=clause,
+            reasoning_tags=['external_reference', 'cited_doc:NY 884', 'kind:delegated_requirement'],
+            evidence=[{'line': 2, 'quote': clause}])
+        self.io.validate(self.record, self.payload)
+        self.payload['metrics'][0]['reasoning_tags'][1] = 'cited_doc:NY884'
+        with self.assertRaises(ValueError):
+            self.io.validate(self.record, self.payload)
 
     def test_rules_1_payloads_keep_their_original_checks(self):
         payload = self.io.prepare(self.record, 'test-model', '1.0.0')

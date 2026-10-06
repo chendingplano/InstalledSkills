@@ -23,6 +23,12 @@
       "sha256": "2bcdf0150c4ff05df9a551ce61746bdbce53249d8802e5262434e8f729ee42d7",
       "released": "2026-10-06",
       "notes": "Metric gate, rule IDs per candidate, consistency audit; fixes from devdoc 2026100601 (record 416 review)."
+    },
+    "2.1.0": {
+      "rules": "2.1.0.md",
+      "sha256": "1253a81344e4b6f2bc8f2ffc7945d980bed112b40ba6c6547120f18190784823",
+      "released": "2026-10-07",
+      "notes": "Statement kind per row (ADR 2026100603); one representation for interpretation cut-offs, conditions, measurement basis, schedules and cited_doc identifiers; A4/X10/X13/A3 clarifications from the 416 audit."
     }
   }
 }

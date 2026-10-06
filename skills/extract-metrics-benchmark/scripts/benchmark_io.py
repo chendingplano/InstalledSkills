@@ -29,6 +29,34 @@ RUN_ID_PATTERN = re.compile(r'[0-9]{8}_[0-9]{6}')
 # Rules 2.0.0+: metric_value is the bare number; the comparator lives in value_range_type.
 COMPARATORS = re.compile(r'[<>≤≥＜＞≦≧]')
 RULE_PREFIX = {'accepted': 'A', 'excluded': 'X', 'duplicate': 'D'}
+NUMERIC_RANGE_TYPES = {'lower_bound', 'upper_bound', 'exact', 'range'}
+# Statement kinds of ADR 2026100603. 'definition' and 'unclassified' exist in the application's
+# vocabulary but never describe an accepted gold row (term definitions are X3).
+STATEMENT_KINDS = {'requirement_with_criterion', 'requirement_value_open', 'inspection_requirement',
+                   'delegated_requirement', 'test_parameter', 'metric_definition', 'metric_value',
+                   'observation'}
+
+
+def statement_kind(metric):
+    """Kind of a metric row, by the same rules as ChenWeb web/src/lib/metric-statement-kind.ts."""
+    value_class = metric['value_class'].strip().lower()
+    range_type = metric['value_range_type'].strip().lower()
+    numeric = range_type in NUMERIC_RANGE_TYPES
+    tags = [t.strip().lower() for t in metric['reasoning_tags']]
+    if 'test_condition' in tags:
+        return 'test_parameter'
+    if value_class == 'definition':
+        return 'metric_definition' if metric['formula_or_definition'].strip() else 'definition'
+    if value_class == 'reference' or any(t == 'external_reference' or t.startswith('cited_doc:')
+                                         for t in tags):
+        return 'metric_value' if numeric else 'delegated_requirement'
+    if value_class in ('requirement', 'target'):
+        if numeric:
+            return 'requirement_with_criterion'
+        return 'requirement_value_open' if range_type == 'limit_absent' else 'inspection_requirement'
+    if value_class in ('observation', 'design_capability'):
+        return 'metric_value' if numeric else 'observation'
+    return 'unclassified'
 
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
@@ -184,6 +212,8 @@ def validate(record, payload):
     require(payload.get('skill_name') == skill_name(), 'Payload skill_name does not match this skill')
     # Checks introduced with rules 2.0.0; earlier versions keep validating as they were released.
     gated = version_key(payload['skill_version'])[0] >= 2
+    # Checks introduced with rules 2.1.0: statement kind, reference rows, interpretation cut-offs.
+    gated_2_1 = version_key(payload['skill_version'])[:3] >= (2, 1, 0)
     rules = rule_ids(payload['skill_version']) if gated else set()
     require(isinstance(payload.get('model_name'), str) and payload['model_name'].strip(),
             'Missing model_name')
@@ -235,6 +265,24 @@ def validate(record, payload):
                     'test_condition metrics are numeric; carry qualitative settings as condition')
             require(metric['value_class'] != 'definition' or metric['formula_or_definition'].strip(),
                     'value_class definition needs formula_or_definition')
+        if gated_2_1:
+            kinds = [t[len('kind:'):] for t in tags if t.startswith('kind:')]
+            require(len(kinds) == 1 and kinds[0] in STATEMENT_KINDS,
+                    f'{metric["metric_id"]}: exactly one kind:<kind> tag from {sorted(STATEMENT_KINDS)}')
+            derived = statement_kind(metric)
+            require(kinds[0] == derived,
+                    f'{metric["metric_id"]}: kind:{kinds[0]} disagrees with the row shape ({derived}); '
+                    'fix the representation, not the tag')
+            require(metric['value_class'] != 'reference' or 'external_reference' in tags,
+                    f'{metric["metric_id"]}: value_class reference is only for A3 delegations')
+            require('interpretation_bound' not in tags or (
+                        metric['value_class'] == 'definition' and
+                        metric['value_range_type'] in ('lower_bound', 'upper_bound')),
+                    f'{metric["metric_id"]}: interpretation_bound rows are definition bounds')
+            for tag in tags:
+                if tag.startswith('cited_doc:'):
+                    require(not re.match(r'[A-Za-z/]+[0-9]', tag[len('cited_doc:'):]),
+                            f'{metric["metric_id"]}: write {tag} with a space before the number')
         if metric['value_range_type'] == 'range':
             lo, hi = metric.get('value_min'), metric.get('value_max')
             require(type(lo) in (int, float) and type(hi) in (int, float) and

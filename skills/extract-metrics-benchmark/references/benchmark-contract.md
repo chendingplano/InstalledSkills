@@ -91,6 +91,7 @@ Use **storage names** (`metric_subject`, `metric_desc`, `metric_context`, `metri
 | `metric_value`, `metric_unit` | Both empty for qualitative/limit_absent; preserve source text for numeric values |
 | `metric_value` (rules ≥ 2.0.0) | The bare number, never a comparator (`100`, not `<100`); the comparator is `value_range_type` plus `threshold_or_target` |
 | `reasoning_tags` (rules ≥ 2.0.0) | `strict_bound` marks a strict `lower_bound`/`upper_bound` (> or <); `test_condition` marks a numeric test-method setting (rule A6) and is not allowed on qualitative/limit_absent rows |
+| `reasoning_tags` (rules ≥ 2.1.0) | Exactly one `kind:<kind>`: `requirement_with_criterion`, `requirement_value_open`, `inspection_requirement`, `delegated_requirement`, `test_parameter`, `metric_definition`, `metric_value`, `observation`. `validate` derives the kind from the row (`statement_kind` in `benchmark_io.py`, mirroring ChenWeb `web/src/lib/metric-statement-kind.ts`) and refuses a mismatch. `interpretation_bound` marks an interpretation cut-off: `value_class = definition`, `lower_bound`/`upper_bound`. `cited_doc:<identifier>` has a space before the number (`cited_doc:NY 884`); `value_class = reference` requires `external_reference` |
 | `value_data_type` | Describe the actual stored value representation (for example `number`); empty for qualitative/limit_absent rows with no scalar value |
 | `value_min`, `value_max` | Finite JSON numbers for range only, lower ≤ upper |
 | `condition` | Source-stated applicability; empty if absent |

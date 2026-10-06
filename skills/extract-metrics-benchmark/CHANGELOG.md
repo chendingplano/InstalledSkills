@@ -16,9 +16,31 @@ Two kinds of change are tracked separately:
 | 1.1.0 | `rules/1.0.0.md` | Alias: released as a tooling-only change (skill_version column); rules identical to 1.0.0. Used by run `e6bd8f49` (record 753). |
 | 1.2.0 | `rules/1.0.0.md` | Alias: released as a tooling-only change (skill_name, model_name columns); rules identical to 1.0.0. |
 | 2.0.0 | `rules/2.0.0.md` | Fixes from devdoc `2026100601-devdoc-gold-metrics-416-review` (S1–S8). See below. |
+| 2.1.0 | `rules/2.1.0.md` | Statement kind per row (ADR 2026100603) and representation fixes from the 2.0.0 audit of record 416. See below. |
 
-Default when no version is named: the newest released version (currently 2.0.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
+Default when no version is named: the newest released version (currently 2.1.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
 because rows were already saved under those labels.
+
+### 2.1.0 — 2026-10-07
+
+Minor: which assertions are metrics does not change. Follows the audit
+`analysis-reports/20261006-1311-metric-extraction-analysis-report.md` (run `20261006_121911`) and
+ADR 2026100603 (Separate Requirements from Metrics).
+
+- **Statement kind** (§3.1): every accepted row carries one `kind:<kind>` tag, the vocabulary the
+  ChenWeb interface uses to label rows as requirements, metric values, test parameters or
+  definitions. Scorers can now split gold rows into requirements and metrics without a new run.
+- **Interpretation cut-offs** (A1): `value_class = definition`, the reading in
+  `formula_or_definition`, tag `interpretation_bound`, not `reference` (audit §3.3).
+- **Conditions** (§3): a method's suitability (适用范围) is not a `condition`; a measurement basis
+  (以烘干基计, 鲜样) goes in the name or description (audit §4.1, §4.2).
+- **Schedules** (§3): "每日" is `exact` 1 `次/日`, not an interval of 1 day (audit §4.3).
+- **Delegations** (A3, §2.4): a process may be the object; `cited_doc:` identifiers are written as
+  in the normative-reference list (`NY 884`); `reference` is only for A3 rows (audit §4.4, §4.5).
+- **Clarifications, not new exclusions:** A4 only for quantities; process names stay X13 even when
+  the source calls them parameters; species/strain names and other identities are X10. These state
+  how 2.0.0's rules already apply; the 2.0.0 run accepted `416_gold_19` (主体工艺) and `416_gold_39`
+  (种名) in error (audit §3.1, §3.2).
 
 ### 2.0.0 — 2026-10-06
 
@@ -45,6 +67,13 @@ under 1.0.0, about 64 hold up under the review).
   states kept only when presence/absence is observable (A2), subjective ones excluded (X11).
 
 ## Tooling changes
+
+### 2026-10-07 — validation for rules 2.1.0
+- `validate` gates new checks on rules ≥ 2.1.0: exactly one `kind:` tag matching the row's shape
+  (`statement_kind`, a copy of the ChenWeb classifier), `reference` only with `external_reference`,
+  `interpretation_bound` only on definition bounds, `cited_doc:` identifiers with a space before the
+  number. Payloads for 2.0.0 and 1.x validate unchanged.
+- Tests: fixture now defaults to 2.1.0; 2.0.0-specific tests pin their version.
 
 ### 2026-10-06 — validation for rules 2.0.0
 - `validate` gates new checks on rules major version ≥ 2: `rule_id` per candidate (read from the bold
