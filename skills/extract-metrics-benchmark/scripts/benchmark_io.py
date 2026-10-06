@@ -25,6 +25,16 @@ CLASSES = {'observation', 'requirement', 'target', 'reference', 'design_capabili
 LOCATIONS = {'sentence', 'bullet', 'table_row', 'table_cell', 'heading_context', 'mixed'}
 
 
+def skill_version():
+    """The skill version is declared once, in SKILL.md frontmatter (metadata.version)."""
+    text = Path(__file__).resolve().parent.parent.joinpath('SKILL.md').read_text(encoding='utf-8')
+    match = re.search(r'^---\n.*?^\s+version:\s*"?([0-9]+\.[0-9]+\.[0-9]+)"?\s*$.*?^---$',
+                      text, re.S | re.M)
+    if not match:
+        raise ValueError('SKILL.md frontmatter has no metadata.version')
+    return match.group(1)
+
+
 def require(condition, message):
     if not condition:
         raise ValueError(message)
@@ -75,6 +85,7 @@ def load_lines(record):
 def prepare(record):
     path, digest, lines = load_lines(record)
     return {'record_id': record['id'], 'benchmark_run_id': str(uuid.uuid4()),
+            'skill_version': skill_version(),
             'source_filename': str(path), 'source_sha256': digest,
             'language': '', 'completeness_review': '', 'correctness_review': '',
             'limitations': [], 'coverage': [], 'candidates': [], 'metrics': []}
@@ -107,6 +118,9 @@ def validate(record, payload):
     uuid.UUID(payload['benchmark_run_id'])
     require(payload['source_filename'] == str(path) and payload['source_sha256'] == digest,
             'Source path/hash changed; re-extract and review this source')
+    require(payload.get('skill_version') == skill_version(),
+            f"Payload skill_version {payload.get('skill_version')!r} is not the current skill "
+            f'version {skill_version()}; re-run the review under the current skill')
     for key in ('language', 'completeness_review', 'correctness_review'):
         require(isinstance(payload.get(key), str) and payload[key].strip(), f'Missing {key}')
     require(payload.get('limitations') == [], 'Unresolved limitations prevent benchmark publication')
@@ -193,6 +207,7 @@ def validate(record, payload):
         metadata = record.get('doc_metadata') or {}
         row.update(input_record_id=record['id'], benchmark_run_id=payload['benchmark_run_id'],
                    source_filename=str(path), source_sha256=digest,
+                   skill_version=payload['skill_version'],
                    ext_info={'schema_version': '2', 'source': 'independent-benchmark',
                              'language': payload['language'], 'reviewed_at': now,
                              'title': metadata.get('title') or record.get('title') or '',
@@ -233,7 +248,7 @@ def save_sql(record, payload, rows):
     # Fixed SQL identifiers and quoted JSON data; psql receives no credentials or SQL on argv.
     fields = TEXT_FIELDS + ARRAY_FIELDS + EN_FIELDS + ['metric_keywords_en', 'source_table_rows',
               'confidence', 'is_explicit_metric', 'value_min', 'value_max', 'input_record_id',
-              'benchmark_run_id', 'source_filename', 'source_sha256', 'ext_info']
+              'benchmark_run_id', 'source_filename', 'source_sha256', 'skill_version', 'ext_info']
     columns = ', '.join(fields)
     identity = {key: record.get(key) for key in ('result_filename', 'staging_filename', 'parser_name')}
     return f'''BEGIN;
@@ -276,7 +291,8 @@ def main():
         subprocess.run(['psql', '-X', '-v', 'ON_ERROR_STOP=1'], input=save_sql(record, payload, rows),
                        text=True, check=True)
     print(json.dumps({'action': args.action, 'record_id': record['id'],
-                      'benchmark_run_id': payload['benchmark_run_id'], 'metrics': len(rows)}))
+                      'benchmark_run_id': payload['benchmark_run_id'],
+                      'skill_version': payload['skill_version'], 'metrics': len(rows)}))
 
 
 if __name__ == '__main__':

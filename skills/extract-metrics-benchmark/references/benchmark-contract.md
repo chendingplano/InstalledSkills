@@ -24,12 +24,13 @@ Use fresh artifact paths per invocation to preserve existing audits. `prepare` r
 
 ## Reviewed JSON envelope
 
-Populate the prepared payload; retain its ID/path/hash/UUID. This abbreviated pressure example illustrates the shape, not a universal extraction result:
+Populate the prepared payload; retain its ID/path/hash/UUID/skill version. This abbreviated pressure example illustrates the shape, not a universal extraction result:
 
 ```json
 {
   "record_id": 123,
   "benchmark_run_id": "<UUID from prepare>",
+  "skill_version": "<version from prepare>",
   "source_filename": "<resolved working .txt path>",
   "source_sha256": "<SHA-256 from prepare>",
   "language": "en",
@@ -91,11 +92,11 @@ Use **storage names** (`metric_subject`, `metric_desc`, `metric_context`, `metri
 | `metric_categories` | One or more meaningful keys, never hierarchy paths |
 | `annotation_notes` | Optional source-interpretation, tolerance/comparator, table-context or category rationale; saved in `ext_info` |
 
-For non-English sources add applicable `metric_name_en`, `metric_subject_en`, `metric_desc_en`, `metric_context_en`, `metric_keywords_en`, `metric_unit_en`, `value_class_en`. English rows store them null. The helper supplies document/run IDs, filename/hash and `ext_info` (language, schema version `2`, evidence, ledgers and reviews). Title/doc number use `doc_metadata` with top-level fallback. It generates no model/prompt claims or production event IDs.
+For non-English sources add applicable `metric_name_en`, `metric_subject_en`, `metric_desc_en`, `metric_context_en`, `metric_keywords_en`, `metric_unit_en`, `value_class_en`. English rows store them null. The helper supplies document/run IDs, filename/hash, `skill_version` (from `SKILL.md` frontmatter `metadata.version`; validation fails if the payload was prepared under another version) and `ext_info` (language, schema version `2`, evidence, ledgers and reviews). Title/doc number use `doc_metadata` with top-level fallback. It generates no model/prompt claims or production event IDs.
 
 ## Table provisioning and save
 
-Committed schema: `ChenWeb/project_migrations/20261006000001_create_testbed_metrics.sql`. Startup runs project migrations through `server/cmd/config/config.go`. Use the Goose project track, `ChenWeb/project_migrations`, and existing `project_db_migration` version table. Follow db-migration skill guidance for credentials/execution; never test rollback against valuable benchmark data. The schema excludes production search indexes/triggers/category side effects.
+Committed schema: `ChenWeb/project_migrations/20261006000001_create_testbed_metrics.sql`, plus `20261006000002_add_skill_version_to_testbed_metrics.sql` (`skill_version TEXT NOT NULL`; rows saved before versioning were backfilled as `1.0.0`). Startup runs project migrations through `server/cmd/config/config.go`. Use the Goose project track, `ChenWeb/project_migrations`, and existing `project_db_migration` version table. Follow db-migration skill guidance for credentials/execution; never test rollback against valuable benchmark data. The schema excludes production search indexes/triggers/category side effects.
 
 Inspect before saving:
 

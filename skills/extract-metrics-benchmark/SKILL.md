@@ -1,6 +1,8 @@
 ---
 name: extract-metrics-benchmark
 description: Build an independently reviewed metric benchmark for a document identified by kb.inputs.id. Read its complete canonical line file, audit completeness and correctness, and save evidence-backed metric snapshots in testbed.metrics for evaluating extract_metrics. Use for gold metrics, ground truth, or benchmark extraction; ordinary production extraction remains in kb.metrics.
+metadata:
+  version: "1.1.0"
 ---
 
 # Extract Metrics Benchmark
@@ -8,6 +10,10 @@ description: Build an independently reviewed metric benchmark for a document ide
 Produce a complete, source-grounded benchmark for one document. The required input is a positive integer `record_id` from `kb.inputs.id`; resolve the line filename from that record. Creating this skill alone does not require a document ID or extracting a document.
 
 Author the benchmark independently of `extract_metrics` predictions. Do not call the processor or preview extraction API, copy `kb.metrics`, or read its predictions until the benchmark is frozen. Production records are predictions, not ground truth. Do not inherit the older `document-metric-extractor` skill's precision-over-recall policy or legacy file/storage schema.
+
+## Skill version
+
+This skill is versioned. The version is declared once, as `metadata.version` in this file's frontmatter, and its history is in [CHANGELOG.md](CHANGELOG.md). `scripts/benchmark_io.py` stamps it into the prepared payload and into `testbed.metrics.skill_version` on every saved row, so each benchmark run records which rules produced it. Validation refuses a payload prepared under a different version. Any change to annotation rules, payload shape or storage needs a version bump and a changelog entry: patch for wording that does not change outcomes, minor for compatible additions, major for rules that change which assertions are metrics. When comparing benchmark runs or scoring `extract_metrics`, report the skill version along with the run ID.
 
 ## 1. Resolve and preserve the source
 

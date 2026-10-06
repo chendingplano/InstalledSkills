@@ -145,6 +145,17 @@ class BenchmarkIOTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.io.validate(self.record, self.payload)
 
+    def test_skill_version_is_recorded_and_enforced(self):
+        self.assertRegex(self.payload['skill_version'], r'^[0-9]+\.[0-9]+\.[0-9]+$')
+        rows = self.io.validate(self.record, self.payload)
+        self.assertEqual(rows[0]['skill_version'], self.payload['skill_version'])
+        self.assertIn('skill_version', self.io.save_sql(self.record, self.payload, rows))
+        for stale in ('0.0.1', None):
+            payload = copy.deepcopy(self.payload)
+            payload['skill_version'] = stale
+            with self.assertRaises(ValueError):
+                self.io.validate(self.record, payload)
+
     def test_sql_keeps_quotes_as_data(self):
         self.payload['metrics'][0]['metric_desc'] = "Pump's value'; DROP TABLE kb.metrics; --"
         rows = self.io.validate(self.record, self.payload)

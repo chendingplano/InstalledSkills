@@ -25,9 +25,11 @@ class PostgresIOTests(unittest.TestCase):
         self.addCleanup(fixture.tmp.cleanup)
         script = Path(__file__).resolve()
         workspace = script.parents[4]
-        migration = (workspace / 'ChenWeb/project_migrations/'
-                     '20261006000001_create_testbed_metrics.sql').read_text()
-        up, down = migration.split('-- +goose Down')
+        migrations = [path.read_text().split('-- +goose Down') for path in
+                      sorted((workspace / 'ChenWeb/project_migrations').glob('*testbed_metrics.sql'))]
+        self.assertGreaterEqual(len(migrations), 2)
+        up = '\n'.join(m[0] for m in migrations)
+        down = '\n'.join(m[1] for m in reversed(migrations))
         with tempfile.TemporaryDirectory(prefix='metric-benchmark-pg-') as scratch:
             root = Path(scratch)
             data = root / 'data'
@@ -68,6 +70,7 @@ class PostgresIOTests(unittest.TestCase):
                 self.assertEqual(len(saved), 1)
                 for key, value in rows[0].items():
                     self.assertEqual(saved[0][key], value, key)
+                self.assertEqual(saved[0]['skill_version'], fixture.io.skill_version())
                 sql(save, succeeds=False)
                 sql(fixture.io.save_sql(dict(record, staging_filename='wrong.pdf'),
                                         fixture.payload, rows), succeeds=False)
