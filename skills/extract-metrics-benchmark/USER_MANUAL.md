@@ -5,16 +5,16 @@
 | title | Extract Metrics Benchmark — User Manual |
 | language | en |
 | format | markdown |
-| version | 1.0 |
+| version | 1.1 |
 | status | Draft |
 | author | Not specified |
 | owner | Not specified |
 | audience | People who run or review gold-metric benchmarks through a coding assistant; no programming needed |
 | create-time | 2026-10-06T08:30:04-05:00 |
-| last-modify-time | 2026-10-06T08:40:00-05:00 |
+| last-modify-time | 2026-10-06T09:15:00-05:00 |
 | keywords | gold metrics, benchmark, ground truth, extract_metrics, metric extraction quality, testbed.metrics, skill version, rules version, Claude Code, Codex, compare versions |
 
-This manual has its own version number (1.0), which is separate from the skill's rules versions listed
+This manual has its own version number (1.1), which is separate from the skill's rules versions listed
 under [Available versions](#available-versions).
 
 ## What this skill is
@@ -39,8 +39,9 @@ once for mistakes), and saves the result.
 - **Document ID:** every document in the system has a number (its `kb.inputs.id`, for example `416`).
   You always give the skill one document ID.
 - **Run:** each time the skill builds an answer key, the result is saved as a new, separate snapshot
-  called a run, with its own run ID. Runs are never overwritten. Running the same document twice gives
-  two runs side by side.
+  called a run, with its own run ID: the date and time the run started, such as `20261006_085331`
+  (6 October 2026, 08:53:31). Runs are never overwritten. Running the same document twice gives two
+  runs side by side.
 - **Rules version:** the rules for deciding what counts as a metric are written down and numbered
   (1.0.0, 2.0.0, …). Once released, a version never changes, so any version can be run again later
   with exactly the same rules. Every run records the rules version it used.
@@ -108,8 +109,11 @@ document 416."*
 - **It may stop and ask** when something blocks a complete answer key: the database is unreachable,
   the source text is damaged, or a passage is genuinely ambiguous. It will not save a partial or
   uncertain answer key as if it were complete.
-- **Where to see results:** in ChenWeb, open **/development → LLM → Metrics → Gold Metrics**. That page
-  shows the latest run for each document.
+- **Where to see results:** in ChenWeb, open **/development → LLM → Metrics → Gold Metrics**. Above
+  the document list, pick a **Skill version** (the newest is chosen for you) and a **Model name** (you
+  must choose one; the page asks you to). The document list shows only documents that have gold
+  metrics for that version (and model, once chosen), and the page shows the latest run of that version
+  and model for the document you select.
 
 ## Available versions
 
@@ -154,8 +158,9 @@ To see how a rules change affects results:
 - **Answer keys are judgments.** The skill checks its work, but a run is only as good as its rules
   version. Runs made with version 1.0.0, 1.1.0 or 1.2.0 include many items that are not real metrics,
   so don't use them to score `extract_metrics` until a corrected version exists.
-- **The Gold Metrics page shows only the latest run per document.** It does not yet show the rules
-  version or the model. Ask the assistant if you need those.
+- **The Gold Metrics page shows one run per document**: the latest run for the chosen skill version
+  and model. Earlier runs with the same version and model are not shown; ask the assistant if you
+  need them.
 
 ## Further reading
 
@@ -169,5 +174,6 @@ To see how a rules change affects results:
 
 | Version | Timestamp | Author | Reason | Summary |
 |---|---|---|---|---|
+| 1.1 | 2026-10-06T09:15:00-05:00 | Not specified (drafted by Claude Code) | Gold Metrics page gained version and model filters | "Where to see results" explains the Skill version and Model name pull-downs and that the document list shows only documents with gold metrics; the limit about not showing version or model is replaced. Run IDs are now date-times. |
 | 1.0 | 2026-10-06T08:40:00-05:00 | Not specified (drafted by Claude Code) | Default version rule changed | When no version is named, the newest released version is used; removed the Default column. Owner added slash-command and Codex examples with a version. |
 | 1.0 | 2026-10-06T08:30:04-05:00 | Not specified (drafted by Claude Code) | Users need to know how to run the skill and which versions exist | First edition: purpose, key ideas, use in Claude Code, Codex and other assistants, available versions, comparing versions, limits. |

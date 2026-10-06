@@ -169,6 +169,21 @@ class BenchmarkIOTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 self.io.validate(self.record, payload)
 
+    def test_run_id_is_a_timestamp_and_a_run_key_is_never_reused(self):
+        from datetime import datetime
+        self.assertRegex(self.payload['benchmark_run_id'], r'^[0-9]{8}_[0-9]{6}$')
+        self.assertEqual(self.io.new_run_id(datetime(2026, 10, 6, 9, 5, 7)), '20261006_090507')
+        rows = self.io.validate(self.record, self.payload)
+        sql = self.io.save_sql(self.record, self.payload, rows)
+        self.assertIn('benchmark_run_key_unused', sql)
+        self.assertIn(f"benchmark_run_id = '{self.payload['benchmark_run_id']}'", sql)
+        self.assertNotIn('ON CONFLICT', sql)
+        for legacy in ('22aa157c-d712-46be-abc8-d7f195cff483', '20261006-090507', None):
+            payload = copy.deepcopy(self.payload)
+            payload['benchmark_run_id'] = legacy
+            with self.assertRaises(ValueError):
+                self.io.validate(self.record, payload)
+
     def test_every_released_rules_file_is_unchanged(self):
         for version in self.io.rules_manifest()['versions']:
             self.assertEqual(self.io.resolve_rules(version)[0], version)

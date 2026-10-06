@@ -25,12 +25,12 @@ Use fresh artifact paths per invocation to preserve existing audits. `prepare` r
 
 ## Reviewed JSON envelope
 
-Populate the prepared payload; retain its ID/path/hash/UUID/skill name/skill version/model name. This abbreviated pressure example illustrates the shape, not a universal extraction result:
+Populate the prepared payload; retain its ID/path/hash/run ID/skill name/skill version/model name. This abbreviated pressure example illustrates the shape, not a universal extraction result:
 
 ```json
 {
   "record_id": 123,
-  "benchmark_run_id": "<UUID from prepare>",
+  "benchmark_run_id": "<yyyymmdd_hhmmss from prepare>",
   "skill_name": "extract-metrics-benchmark",
   "skill_version": "<version from prepare>",
   "rules_sha256": "<SHA-256 of that version's rules file, from prepare>",
@@ -120,16 +120,19 @@ python3 .agents/skills/extract-metrics-benchmark/scripts/benchmark_io.py save \
   --record /tmp/metrics-123-record.json --payload /tmp/metrics-123-benchmark.json
 ```
 
-The helper sends fixed-identifier, quoted JSON SQL through `psql` stdin with `ON_ERROR_STOP=1`. All rows insert atomically. Duplicate metric IDs within a run fail. Fresh runs append snapshots; no replacement. After an ambiguous connection failure, query by document/run ID before retrying.
+The helper sends fixed-identifier, quoted JSON SQL through `psql` stdin with `ON_ERROR_STOP=1`. All rows insert atomically. A run key (`skill_name`, `skill_version`, `model_name`, `benchmark_run_id`) is used once: the transaction takes an advisory lock on the key and aborts if any row already carries it, and the table enforces `UNIQUE (skill_name, skill_version, model_name, benchmark_run_id, metric_id)` plus the `yyyymmdd_hhmmss` format. Fresh runs append snapshots; nothing is replaced. After an ambiguous connection failure, query by the run key before retrying; a refused save of an already-saved key means the run is already stored.
 
-Read back, substituting the prepared UUID:
+Read back, substituting the prepared run key:
 
 ```bash
-psql -X -A -t -v ON_ERROR_STOP=1 -v record_id=123 -v run_id='<prepared UUID>' \
+psql -X -A -t -v ON_ERROR_STOP=1 -v record_id=123 -v run_id='<yyyymmdd_hhmmss>' \
+  -v skill_version='<version>' -v model_name='<model>' \
   -o /tmp/metrics-123-readback.json <<'SQL'
 SELECT COALESCE(jsonb_agg(to_jsonb(m) ORDER BY m.metric_id), '[]'::jsonb)
 FROM testbed.metrics m
-WHERE input_record_id = :'record_id'::bigint AND benchmark_run_id = :'run_id'::uuid;
+WHERE input_record_id = :'record_id'::bigint AND benchmark_run_id = :'run_id'
+  AND skill_name = 'extract-metrics-benchmark' AND skill_version = :'skill_version'
+  AND model_name = :'model_name';
 SQL
 ```
 

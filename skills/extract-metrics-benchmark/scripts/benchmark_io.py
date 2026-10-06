@@ -10,7 +10,6 @@ from pathlib import Path
 import re
 import subprocess
 import sys
-import uuid
 
 
 TEXT_FIELDS = '''metric_id metric_name metric_subject metric_desc metric_context
@@ -23,6 +22,10 @@ metric_unit_en value_class_en'''.split()
 RANGE_TYPES = {'lower_bound', 'upper_bound', 'exact', 'range', 'qualitative', 'limit_absent'}
 CLASSES = {'observation', 'requirement', 'target', 'reference', 'design_capability', 'definition'}
 LOCATIONS = {'sentence', 'bullet', 'table_row', 'table_cell', 'heading_context', 'mixed'}
+# benchmark_run_id: local time the run was prepared. A run is identified by
+# (skill_name, skill_version, model_name, benchmark_run_id) and is never overwritten.
+RUN_ID_FORMAT = '%Y%m%d_%H%M%S'
+RUN_ID_PATTERN = re.compile(r'[0-9]{8}_[0-9]{6}')
 
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
@@ -116,12 +119,16 @@ def load_lines(record):
     return path, hashlib.sha256(raw).hexdigest(), lines
 
 
+def new_run_id(now=None):
+    return (now or datetime.now()).strftime(RUN_ID_FORMAT)
+
+
 def prepare(record, model_name, version=None):
     require(isinstance(model_name, str) and model_name.strip(),
             'model_name required: the exact ID of the model running this skill')
     version, rules_sha256 = resolve_rules(version)
     path, digest, lines = load_lines(record)
-    return {'record_id': record['id'], 'benchmark_run_id': str(uuid.uuid4()),
+    return {'record_id': record['id'], 'benchmark_run_id': new_run_id(),
             'skill_name': skill_name(), 'skill_version': version, 'rules_sha256': rules_sha256,
             'model_name': model_name.strip(),
             'source_filename': str(path), 'source_sha256': digest,
@@ -153,7 +160,9 @@ def string_list(value, name, nonempty=False):
 def validate(record, payload):
     path, digest, lines = load_lines(record)
     require(payload['record_id'] == record['id'], 'Document ID mismatch')
-    uuid.UUID(payload['benchmark_run_id'])
+    require(isinstance(payload.get('benchmark_run_id'), str) and
+            RUN_ID_PATTERN.fullmatch(payload['benchmark_run_id']),
+            'benchmark_run_id must be yyyymmdd_hhmmss from prepare; re-run prepare for a UUID payload')
     require(payload['source_filename'] == str(path) and payload['source_sha256'] == digest,
             'Source path/hash changed; re-extract and review this source')
     _, rules_sha256 = resolve_rules(payload.get('skill_version') or '-')
@@ -290,6 +299,10 @@ def sql_json(value):
     return "'" + json.dumps(value, ensure_ascii=False, allow_nan=False).replace("'", "''") + "'::jsonb"
 
 
+def sql_text(value):
+    return "'" + str(value).replace("'", "''") + "'"
+
+
 def save_sql(record, payload, rows):
     # Fixed SQL identifiers and quoted JSON data; psql receives no credentials or SQL on argv.
     fields = TEXT_FIELDS + ARRAY_FIELDS + EN_FIELDS + ['metric_keywords_en', 'source_table_rows',
@@ -298,6 +311,10 @@ def save_sql(record, payload, rows):
               'ext_info']
     columns = ', '.join(fields)
     identity = {key: record.get(key) for key in ('result_filename', 'staging_filename', 'parser_name')}
+    run_key = ' AND '.join(f"{key} = {sql_text(payload[key])}" for key in
+                           ('skill_name', 'skill_version', 'model_name', 'benchmark_run_id'))
+    # A run key is used once: the advisory lock serializes concurrent saves of the same key,
+    # and the guard aborts the transaction if any row already carries it.
     return f'''BEGIN;
 SET LOCAL standard_conforming_strings = on;
 SELECT id FROM kb.inputs WHERE id = {record['id']} FOR SHARE;
@@ -306,10 +323,14 @@ INSERT INTO benchmark_input_guard SELECT EXISTS (
  SELECT 1 FROM kb.inputs WHERE id = {record['id']}
  AND jsonb_build_object('result_filename', result_filename, 'staging_filename', staging_filename,
                         'parser_name', parser_name) = {sql_json(identity)});
+SELECT pg_advisory_xact_lock(hashtextextended({sql_text(run_key)}, 0));
+CREATE TEMP TABLE benchmark_run_key_unused (ok BOOLEAN NOT NULL CHECK (ok)) ON COMMIT DROP;
+INSERT INTO benchmark_run_key_unused SELECT NOT EXISTS (
+ SELECT 1 FROM testbed.metrics WHERE {run_key});
 INSERT INTO testbed.metrics ({columns})
  SELECT {columns} FROM jsonb_populate_recordset(NULL::testbed.metrics, {sql_json(rows)});
 SELECT count(*) AS saved_metrics FROM testbed.metrics
- WHERE input_record_id = {record['id']} AND benchmark_run_id = '{payload['benchmark_run_id']}';
+ WHERE {run_key};
 COMMIT;
 '''
 

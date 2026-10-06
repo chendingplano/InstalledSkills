@@ -9,7 +9,6 @@ import shutil
 import subprocess
 import tempfile
 import unittest
-import uuid
 
 import test_benchmark_io as fixtures
 
@@ -76,10 +75,14 @@ class PostgresIOTests(unittest.TestCase):
                 sql(save, succeeds=False)
                 sql(fixture.io.save_sql(dict(record, staging_filename='wrong.pdf'),
                                         fixture.payload, rows), succeeds=False)
-                broken = [dict(rows[0], benchmark_run_id=str(uuid.uuid4())),
+                broken = [dict(rows[0], benchmark_run_id='not-a-timestamp'),
                           dict(rows[0], metric_id='broken', source_line_spans={})]
                 sql(fixture.io.save_sql(record, fixture.payload, broken), succeeds=False)
                 self.assertEqual(sql('SELECT count(*) FROM testbed.metrics;'), '1')
+                # A new run key appends a new snapshot; the first run is untouched.
+                rerun = dict(fixture.payload, benchmark_run_id='20000101_000000')
+                sql(fixture.io.save_sql(record, rerun, fixture.io.validate(record, rerun)))
+                self.assertEqual(sql('SELECT count(DISTINCT benchmark_run_id) FROM testbed.metrics;'), '2')
             finally:
                 run(['pg_ctl', '-D', str(data), '-m', 'immediate', '-w', 'stop'])
 

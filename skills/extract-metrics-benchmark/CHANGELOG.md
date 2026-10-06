@@ -22,6 +22,19 @@ because rows were already saved under those labels.
 
 ## Tooling changes
 
+### 2026-10-06 — timestamp run IDs; a run key is never reused
+- `prepare` sets `benchmark_run_id` to the local time as `yyyymmdd_hhmmss` (was a UUID); `validate`
+  refuses any other format, so payloads prepared with a UUID must be prepared again.
+- A run is identified by (`skill_name`, `skill_version`, `model_name`, `benchmark_run_id`). `save`
+  locks the key and refuses it if any row already has it: every save creates new records.
+- Migration `20261006000004`: column `TEXT` with a format check;
+  `UNIQUE (skill_name, skill_version, model_name, benchmark_run_id, metric_id)` replaces
+  `UNIQUE (input_record_id, benchmark_run_id, metric_id)`. Existing runs were renamed from their
+  first row's time; the old UUID is in `ext_info.legacy_benchmark_run_id`:
+  `22aa157c` → `20261006_071048` (record 416, 1.0.0), `e6bd8f49` → `20261006_081536` (record 753,
+  1.1.0), `07faf118` → `20261006_085331` (record 416, 1.2.0).
+- No new rules version: rules and `skill_version` are unchanged.
+
 ### 2026-10-06 — default is the newest version
 - With no `--skill-version`, `prepare` uses the newest released version (numeric comparison; pre-releases
   excluded). The `default` field was removed from `rules/versions.json`.
