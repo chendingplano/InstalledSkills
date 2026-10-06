@@ -42,10 +42,25 @@ def rules_manifest():
     return json.loads(SKILL_DIR.joinpath('rules', 'versions.json').read_text(encoding='utf-8'))
 
 
+def version_key(version):
+    """Numeric ordering key for MAJOR.MINOR.PATCH[-pre]; a pre-release sorts before its release."""
+    match = re.fullmatch(r'([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9A-Za-z.-]+))?', version)
+    require(match, f'Invalid skill version {version!r}; use MAJOR.MINOR.PATCH[-pre]')
+    pre = match.group(4)
+    return tuple(int(x) for x in match.groups()[:3]) + ((1,) if pre is None else (0, pre))
+
+
+def newest_version(manifest=None):
+    """The default: the newest released version, ignoring pre-releases (they must be named)."""
+    versions = [v for v in (manifest or rules_manifest())['versions'] if '-' not in v]
+    require(versions, 'No released skill version in rules/versions.json')
+    return max(versions, key=version_key)
+
+
 def resolve_rules(version=None):
     """Return (version, rules_sha256) for a released rules version; refuse edited rules files."""
     manifest = rules_manifest()
-    version = version or manifest['default']
+    version = version or newest_version(manifest)
     entry = manifest['versions'].get(version)
     require(entry, f'Unknown skill version {version!r}; released: {sorted(manifest["versions"])}')
     digest = hashlib.sha256(SKILL_DIR.joinpath('rules', entry['rules']).read_bytes()).hexdigest()
@@ -306,7 +321,7 @@ def main():
     parser.add_argument('--payload', type=Path, help='Reviewed benchmark JSON')
     parser.add_argument('--output', type=Path, help='New payload path for prepare')
     parser.add_argument('--model-name', help='prepare: exact ID of the model running this skill')
-    parser.add_argument('--skill-version', help='prepare: released rules version (default: rules/versions.json default)')
+    parser.add_argument('--skill-version', help='prepare: released rules version (default: newest released, non-pre-release)')
     args = parser.parse_args()
     record = json.loads(args.record.read_text(encoding='utf-8'))
     if args.action == 'prepare':

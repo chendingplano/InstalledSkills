@@ -173,6 +173,12 @@ class BenchmarkIOTests(unittest.TestCase):
         for version in self.io.rules_manifest()['versions']:
             self.assertEqual(self.io.resolve_rules(version)[0], version)
 
+    def test_default_is_newest_release_not_prerelease(self):
+        manifest = {'versions': {v: {} for v in ('1.0.0', '1.10.0', '1.9.0', '2.0.0-rc.1')}}
+        self.assertEqual(self.io.newest_version(manifest), '1.10.0')
+        self.assertEqual(self.payload['skill_version'], self.io.newest_version())
+        self.assertLess(self.io.version_key('2.0.0-rc.1'), self.io.version_key('2.0.0'))
+
     def test_named_version_is_run_and_recorded(self):
         payload = self.io.prepare(self.record, 'test-model', '1.0.0')
         payload.update({k: self.payload[k] for k in ('language', 'completeness_review',
@@ -188,7 +194,7 @@ class BenchmarkIOTests(unittest.TestCase):
         original = self.io.SKILL_DIR
         copy_dir = Path(self.tmp.name) / 'skill'
         shutil.copytree(original, copy_dir, ignore=shutil.ignore_patterns('__pycache__'))
-        version = self.io.rules_manifest()['default']
+        version = self.io.newest_version()
         rules = copy_dir / 'rules' / self.io.rules_manifest()['versions'][version]['rules']
         rules.write_text(rules.read_text() + '\nEdited.\n')
         self.io.SKILL_DIR = copy_dir

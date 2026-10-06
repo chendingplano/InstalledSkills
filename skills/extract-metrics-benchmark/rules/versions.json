@@ -1,5 +1,4 @@
 {
-  "default": "1.0.0",
   "versions": {
     "1.0.0": {
       "rules": "1.0.0.md",

@@ -17,7 +17,7 @@ SQL
 
 python3 .agents/skills/extract-metrics-benchmark/scripts/benchmark_io.py prepare \
   --record /tmp/metrics-123-record.json --output /tmp/metrics-123-benchmark.json \
-  --skill-version <released version, default from rules/versions.json> \
+  --skill-version <released version; omit for the newest> \
   --model-name <exact ID of the model running this skill> > /tmp/metrics-123-source.json
 ```
 

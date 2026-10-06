@@ -16,14 +16,19 @@ Two kinds of change are tracked separately:
 | 1.1.0 | `rules/1.0.0.md` | Alias: released as a tooling-only change (skill_version column); rules identical to 1.0.0. Used by run `e6bd8f49` (record 753). |
 | 1.2.0 | `rules/1.0.0.md` | Alias: released as a tooling-only change (skill_name, model_name columns); rules identical to 1.0.0. |
 
-Default: 1.0.0. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
+Default when no version is named: the newest released version (currently 1.2.0, which has the 1.0.0
+rules); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
 because rows were already saved under those labels.
 
 ## Tooling changes
 
+### 2026-10-06 — default is the newest version
+- With no `--skill-version`, `prepare` uses the newest released version (numeric comparison; pre-releases
+  excluded). The `default` field was removed from `rules/versions.json`.
+
 ### 2026-10-06 — runnable versions
 - Rules moved out of `SKILL.md` into frozen `rules/<version>.md` + `rules/versions.json`.
-- `prepare --skill-version <v>` selects a released version (default from the manifest) and refuses an
+- `prepare --skill-version <v>` selects a released version and refuses an
   unknown version or an edited rules file; `rules_sha256` is stored in the payload and in
   `ext_info.rules_sha256`. Payloads prepared by older tooling (no hash) still validate.
 

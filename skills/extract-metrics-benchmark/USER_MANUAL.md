@@ -11,7 +11,7 @@
 | owner | Not specified |
 | audience | People who run or review gold-metric benchmarks through a coding assistant; no programming needed |
 | create-time | 2026-10-06T08:30:04-05:00 |
-| last-modify-time | 2026-10-06T08:30:04-05:00 |
+| last-modify-time | 2026-10-06T08:40:00-05:00 |
 | keywords | gold metrics, benchmark, ground truth, extract_metrics, metric extraction quality, testbed.metrics, skill version, rules version, Claude Code, Codex, compare versions |
 
 This manual has its own version number (1.0), which is separate from the skill's rules versions listed
@@ -67,7 +67,8 @@ You don't type commands. You ask the assistant in plain words, and it follows th
 The skill is available to Claude Code in this workspace and in your user settings. Either:
 
 - type the skill name as a slash command, followed by your request:
-  `/extract-metrics-benchmark build the gold metrics for document 416`
+  `/extract-metrics-benchmark document 416, version <version>`, or 
+  `/extract-metrics-benchmark build the gold metrics for document 416, version <version>`
 - or simply ask: *"Build the gold metrics for document 416."* Claude Code recognises the request and
   loads the skill itself.
 
@@ -75,7 +76,10 @@ The skill is available to Claude Code in this workspace and in your user setting
 
 The skill is installed for Codex as well. Mention it with a `$` sign:
 
-`Use $extract-metrics-benchmark to extract and audit metrics for kb.inputs.id 416 and save the benchmark to testbed.metrics.`
+`Use $extract-metrics-benchmark for kb.inputs.id 416, version <version>`, or
+
+`Use $extract-metrics-benchmark to extract and audit metrics for kb.inputs.id 416, version <version> 
+and save the benchmark to testbed.metrics.`
 
 ### Other coding assistants
 
@@ -89,7 +93,7 @@ document 416."*
 
 | You want to… | Ask |
 |---|---|
-| Build an answer key with the default rules | "Build the gold metrics for document 416." |
+| Build an answer key with the newest rules | "Build the gold metrics for document 416." |
 | Use a specific rules version | "Build the gold metrics for document 416 using skill version 1.0.0." |
 | Compare two rules versions | "Run the benchmark for document 416 with versions 1.0.0 and 2.0.0, then compare the two runs." |
 | See which versions exist | "Which versions of extract-metrics-benchmark are available?" |
@@ -113,13 +117,18 @@ The skill currently has these rules versions. The list of record is
 `rules/versions.json` in the skill directory; ask the assistant to read it if this table may be out of
 date.
 
-| Version | Rules file | Released | Default | Notes |
-|---|---|---|---|---|
-| 1.0.0 | `rules/1.0.0.md` | 2026-10-06 | **Yes** | The original rules. A review of document 416 found that roughly half of its gold metrics are not real metrics; see the review report below. |
-| 1.1.0 | `rules/1.0.0.md` | 2026-10-06 | No | Same rules as 1.0.0. Exists only because a run was saved under this label. |
-| 1.2.0 | `rules/1.0.0.md` | 2026-10-06 | No | Same rules as 1.0.0. Exists only because of an earlier labelling step. |
+| Version | Rules file | Released | Notes |
+|---|---|---|---|
+| 1.0.0 | `rules/1.0.0.md` | 2026-10-06 | The original rules. A review of document 416 found that roughly half of its gold metrics are not real metrics; see the review report below. |
+| 1.1.0 | `rules/1.0.0.md` | 2026-10-06 | Same rules as 1.0.0. Exists only because a run was saved under this label. |
+| 1.2.0 | `rules/1.0.0.md` | 2026-10-06 | Same rules as 1.0.0. Exists only because of an earlier labelling step. |
 
-Because 1.0.0, 1.1.0 and 1.2.0 use identical rules, running any of them gives the same instructions. A
+**If you don't name a version, the newest one is used** (the highest version number; currently 1.2.0).
+Draft versions marked as pre-releases, such as `2.0.0-rc.1`, are used only when you name them. The
+assistant tells you which version it used.
+
+Because 1.0.0, 1.1.0 and 1.2.0 use identical rules, running any of them gives the same instructions
+(i.e., versions 1.0.0, 1.1.0 and 1.2.0 are identical, for historical reasons). A
 corrected set of rules is planned as version **2.0.0** after the review report is approved. It does not
 exist yet.
 
@@ -160,4 +169,5 @@ To see how a rules change affects results:
 
 | Version | Timestamp | Author | Reason | Summary |
 |---|---|---|---|---|
+| 1.0 | 2026-10-06T08:40:00-05:00 | Not specified (drafted by Claude Code) | Default version rule changed | When no version is named, the newest released version is used; removed the Default column. Owner added slash-command and Codex examples with a version. |
 | 1.0 | 2026-10-06T08:30:04-05:00 | Not specified (drafted by Claude Code) | Users need to know how to run the skill and which versions exist | First edition: purpose, key ideas, use in Claude Code, Codex and other assistants, available versions, comparing versions, limits. |
