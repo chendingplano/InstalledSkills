@@ -43,7 +43,8 @@ Populate the prepared payload; retain its ID/path/hash/run ID/skill name/skill v
   "limitations": [],
   "coverage": [{"source_line_spans": ["1:2"], "reason": "Heading and pressure clause reviewed."}],
   "candidates": [{"candidate_id": "c1", "source_line_spans": ["2"], "decision": "accepted",
-                  "metric_ids": ["123_gold_1"], "reason": "Explicit minimum pressure."}],
+                  "metric_ids": ["123_gold_1"], "rule_id": "A1",
+                  "reason": "Explicit minimum pressure."}],
   "metrics": [{
     "metric_id": "123_gold_1",
     "metric_name": "Outlet pressure",
@@ -77,15 +78,19 @@ Populate the prepared payload; retain its ID/path/hash/run ID/skill name/skill v
 
 Benchmark-local `metric_id` convention: `<record_id>_gold_<seqno>`; not a production metric/candidate ID. Ledger IDs are unique within a review. Accepted candidates link final metrics; excluded candidates link none; duplicate candidates link retained metrics. Uncertain decisions or nonempty `limitations` block saving.
 
+**Rules 2.0.0 and later.** Each candidate carries `rule_id`, one of the bold rule IDs in that version's rules file: an `A` rule for `accepted`, an `X` rule for `excluded`, `D1` for `duplicate`. `validate` reads the IDs from the rules file. Payloads for rules 1.x need no `rule_id` and keep their original checks.
+
 Use **storage names** (`metric_subject`, `metric_desc`, `metric_context`, `metric_keywords`, `metric_unit`), not enrichment aliases (`subject`, `desc`, `context`, `keywords`, `unit`). Empty source-absent text is `""`; absent endpoints are null. Arrays remain JSON arrays.
 
 | Field | Contract |
 |---|---|
 | `location_type` | `sentence`, `bullet`, `table_row`, `table_cell`, `heading_context`, `mixed` |
 | `value_range_type` | `lower_bound`, `upper_bound`, `exact`, `range`, `qualitative`, `limit_absent` |
-| `value_class` | `observation`, `requirement`, `target`, `reference`, `design_capability`, `definition` |
+| `value_class` | `observation`, `requirement`, `target`, `reference`, `design_capability`, `definition`. From rules 2.0.0, `definition` is only for metric/formula definitions and needs `formula_or_definition` |
 | `is_explicit_metric` | True for numeric lower/upper/exact/range; false for qualitative/limit_absent |
 | `metric_value`, `metric_unit` | Both empty for qualitative/limit_absent; preserve source text for numeric values |
+| `metric_value` (rules ≥ 2.0.0) | The bare number, never a comparator (`100`, not `<100`); the comparator is `value_range_type` plus `threshold_or_target` |
+| `reasoning_tags` (rules ≥ 2.0.0) | `strict_bound` marks a strict `lower_bound`/`upper_bound` (> or <); `test_condition` marks a numeric test-method setting (rule A6) and is not allowed on qualitative/limit_absent rows |
 | `value_data_type` | Describe the actual stored value representation (for example `number`); empty for qualitative/limit_absent rows with no scalar value |
 | `value_min`, `value_max` | Finite JSON numbers for range only, lower ≤ upper |
 | `condition` | Source-stated applicability; empty if absent |

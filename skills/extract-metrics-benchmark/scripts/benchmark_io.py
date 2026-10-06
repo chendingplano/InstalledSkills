@@ -26,6 +26,9 @@ LOCATIONS = {'sentence', 'bullet', 'table_row', 'table_cell', 'heading_context',
 # (skill_name, skill_version, model_name, benchmark_run_id) and is never overwritten.
 RUN_ID_FORMAT = '%Y%m%d_%H%M%S'
 RUN_ID_PATTERN = re.compile(r'[0-9]{8}_[0-9]{6}')
+# Rules 2.0.0+: metric_value is the bare number; the comparator lives in value_range_type.
+COMPARATORS = re.compile(r'[<>≤≥＜＞≦≧]')
+RULE_PREFIX = {'accepted': 'A', 'excluded': 'X', 'duplicate': 'D'}
 
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
@@ -70,6 +73,13 @@ def resolve_rules(version=None):
     require(digest == entry['sha256'],
             f'rules/{entry["rules"]} differs from released version {version}; released rules are frozen')
     return version, digest
+
+
+def rule_ids(version):
+    """Decision rule IDs (A1, X3, D1, ...) declared in bold in a rules file; empty before 2.0.0."""
+    entry = rules_manifest()['versions'][version]
+    text = SKILL_DIR.joinpath('rules', entry['rules']).read_text(encoding='utf-8')
+    return set(re.findall(r'\*\*([ADX][0-9]+)\*\*', text))
 
 
 def require(condition, message):
@@ -172,6 +182,9 @@ def validate(record, payload):
     require(payload_rules == rules_sha256,
             'Payload rules_sha256 does not match the released rules for its skill_version')
     require(payload.get('skill_name') == skill_name(), 'Payload skill_name does not match this skill')
+    # Checks introduced with rules 2.0.0; earlier versions keep validating as they were released.
+    gated = version_key(payload['skill_version'])[0] >= 2
+    rules = rule_ids(payload['skill_version']) if gated else set()
     require(isinstance(payload.get('model_name'), str) and payload['model_name'].strip(),
             'Missing model_name')
     for key in ('language', 'completeness_review', 'correctness_review'):
@@ -208,9 +221,20 @@ def validate(record, payload):
         require(explicit == numeric, 'is_explicit_metric contradicts value_range_type')
         if numeric:
             require(re.search(r'\d', metric['metric_value']), 'Numeric metric needs a source value')
+            require(not gated or not COMPARATORS.search(metric['metric_value']),
+                    'metric_value must not carry a comparator; use value_range_type')
         else:
             require(not metric['metric_value'] and not metric['metric_unit'],
                     'Qualitative/limit_absent value and unit must be empty')
+        tags = metric['reasoning_tags']
+        if gated:
+            require('strict_bound' not in tags or
+                    metric['value_range_type'] in ('lower_bound', 'upper_bound'),
+                    'strict_bound is only for lower_bound/upper_bound metrics')
+            require('test_condition' not in tags or numeric,
+                    'test_condition metrics are numeric; carry qualitative settings as condition')
+            require(metric['value_class'] != 'definition' or metric['formula_or_definition'].strip(),
+                    'value_class definition needs formula_or_definition')
         if metric['value_range_type'] == 'range':
             lo, hi = metric.get('value_min'), metric.get('value_max')
             require(type(lo) in (int, float) and type(hi) in (int, float) and
@@ -285,6 +309,11 @@ def validate(record, payload):
         expand_spans(candidate['source_line_spans'], lines)
         decision = candidate['decision']
         require(decision in ('accepted', 'excluded', 'duplicate'), 'Unresolved candidate')
+        if gated:
+            rule = candidate.get('rule_id')
+            require(rule in rules and rule.startswith(RULE_PREFIX[decision]),
+                    f'Candidate {cid}: rule_id must be a {RULE_PREFIX[decision]} rule of '
+                    f'rules {payload["skill_version"]}, got {rule!r}')
         targets = candidate.get('metric_ids', [])
         string_list(targets, 'candidate metric_ids', decision != 'excluded')
         require(set(targets) <= ids, 'Candidate references missing metric')

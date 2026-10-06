@@ -33,7 +33,7 @@ class BenchmarkIOTests(unittest.TestCase):
                                      'reason': 'Heading supplies subject; pressure clause reviewed.'}]
         self.payload['candidates'] = [{'candidate_id': 'c1', 'decision': 'accepted',
                                       'metric_ids': ['123_gold_1'], 'source_line_spans': ['2'],
-                                      'reason': 'Explicit minimum pressure.'}]
+                                      'rule_id': 'A1', 'reason': 'Explicit minimum pressure.'}]
         self.payload['metrics'] = [{
             'metric_id': '123_gold_1', 'metric_name': 'Outlet pressure',
             'metric_subject': 'Pump', 'metric_desc': 'Minimum pressure',
@@ -224,6 +224,48 @@ class BenchmarkIOTests(unittest.TestCase):
         rows = self.io.validate(self.record, self.payload)
         self.assertEqual(rows[0]['ext_info']['rules_sha256'],
                          self.io.resolve_rules(self.payload['skill_version'])[1])
+
+    def test_rules_2_require_a_matching_rule_id_per_candidate(self):
+        self.assertEqual(self.payload['skill_version'], '2.0.0')
+        self.assertTrue({'A1', 'A6', 'X1', 'X14', 'D1'} <= self.io.rule_ids('2.0.0'))
+        self.assertEqual(self.io.rule_ids('1.0.0'), set())
+        self.io.validate(self.record, self.payload)
+        for rule in (None, 'X1', 'A99'):
+            payload = copy.deepcopy(self.payload)
+            payload['candidates'][0]['rule_id'] = rule
+            with self.assertRaises(ValueError):
+                self.io.validate(self.record, payload)
+        self.payload['candidates'].append({'candidate_id': 'c2', 'decision': 'excluded',
+                                           'source_line_spans': ['1'], 'rule_id': 'X14',
+                                           'reason': 'Heading only.'})
+        self.io.validate(self.record, self.payload)
+
+    def test_rules_2_bounds_tags_and_definitions(self):
+        metric = self.payload['metrics'][0]
+        for field, value in (('metric_value', '≥0.5'), ('metric_value', '<100')):
+            payload = copy.deepcopy(self.payload)
+            payload['metrics'][0][field] = value
+            with self.assertRaises(ValueError):
+                self.io.validate(self.record, payload)
+        metric['reasoning_tags'] = ['has_threshold', 'strict_bound', 'test_condition']
+        self.io.validate(self.record, self.payload)
+        for mutate in (
+            lambda m: m.update(value_range_type='exact'),
+            lambda m: m.update(value_class='definition'),
+            lambda m: m.update(value_range_type='qualitative', metric_value='', metric_unit='',
+                               is_explicit_metric=False, reasoning_tags=['test_condition'])):
+            payload = copy.deepcopy(self.payload)
+            mutate(payload['metrics'][0])
+            with self.assertRaises(ValueError):
+                self.io.validate(self.record, payload)
+
+    def test_rules_1_payloads_keep_their_original_checks(self):
+        payload = self.io.prepare(self.record, 'test-model', '1.0.0')
+        payload.update({k: copy.deepcopy(self.payload[k]) for k in ('language', 'completeness_review',
+                        'correctness_review', 'coverage', 'candidates', 'metrics')})
+        del payload['candidates'][0]['rule_id']
+        payload['metrics'][0]['metric_value'] = '≥0.5'
+        self.io.validate(self.record, payload)
 
     def test_sql_keeps_quotes_as_data(self):
         self.payload['metrics'][0]['metric_desc'] = "Pump's value'; DROP TABLE kb.metrics; --"
