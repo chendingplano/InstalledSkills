@@ -35,6 +35,12 @@
       "sha256": "08c2e3136779d2f4c75b72efa62f43a9fcceecc363cdec463de5fb6726d55ec5",
       "released": "2026-10-07",
       "notes": "Pure requirements are not metrics (ADR 2026100603 DR1/DR3, openspec exclude-pure-requirements-from-metrics): A2/A3 retired as X15/X16; A4 excludes values set by a cited document or another clause/table."
+    },
+    "3.1.0": {
+      "rules": "3.1.0.md",
+      "sha256": "f82b0e31d43d04ad3f4f4918029cd3715e1e3986e6b38528ae41b819a91be634",
+      "released": "2026-10-07",
+      "notes": "Clarification from the 416 3.0.0 audit (report 20261007-0854 §3.1): A4 supplies only the value, never the object; a duty to agree an activity's time or frequency is X2; an activity's time slot is not a measurable property."
     }
   }
 }

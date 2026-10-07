@@ -131,8 +131,9 @@ date.
 | 2.0.0 | `rules/2.0.0.md` | 2026-10-06 | Corrected rules from the review report. A metric must name an object, a property you can measure or inspect, and a value or concrete criterion. Instructions to people, duties, plans, slogans, licences and "tidy"-type wording are no longer metrics. Expect about half as many gold metrics as 1.x. Each decision records the rule that made it. |
 | 2.1.0 | `rules/2.1.0.md` | 2026-10-07 | Same choice of what counts as a metric as 2.0.0. Each gold metric now also says what it is to an expert: a requirement (with a number, with the value set elsewhere, inspection-only, or pointing to another standard), a metric value, a test setting or a definition. These are the same labels the ChenWeb pages show, so you can score requirements and metrics separately. It also fixes how a few things are written down (interpretation thresholds, conditions, measurement basis, "daily" schedules, standard numbers). |
 | 3.0.0 | `rules/3.0.0.md` | 2026-10-07 | A metric must be something you can **measure**. Requirements with nothing to measure are no longer metrics: "the bin shall have a lid" (an inspection requirement) and "shall comply with CJJ 52" (a requirement that points to another standard). This matches the automatic extraction since 2026-10-07, which no longer saves these. The answer key still lists them, as excluded requirements, so you can check that the extraction set them aside. For document 416 this leaves 35 of 2.1.0's 66 gold metrics. |
+| 3.1.0 | `rules/3.1.0.md` | 2026-10-07 | Same as 3.0.0, with one clarification. A rule that only says two parties must **agree** when or how often something is done ("agree the kitchen-waste collection time and frequency") is a duty, not a metric: there is nothing to measure. 3.0.0 runs counted it as a metric with the value left open. For document 416 this leaves 33 gold metrics. |
 
-**If you don't name a version, the newest one is used** (the highest version number; currently 3.0.0).
+**If you don't name a version, the newest one is used** (the highest version number; currently 3.1.0).
 Draft versions marked as pre-releases, such as `2.0.0-rc.1`, are used only when you name them. The
 assistant tells you which version it used.
 
@@ -140,7 +141,8 @@ Because 1.0.0, 1.1.0 and 1.2.0 use identical rules, running any of them gives th
 (i.e., versions 1.0.0, 1.1.0 and 1.2.0 are identical, for historical reasons). Version **2.0.0** is the
 corrected rule set based on the review report. Version **2.1.0** keeps 2.0.0's decisions and adds the
 requirement/metric labels. Version **3.0.0** drops the requirements that have nothing to measure; use it
-to score the current automatic extraction.
+to score the current automatic extraction. Version **3.1.0** also drops duties to agree when or how
+often an activity is done.
 
 If you ask for a version that isn't in the list, the assistant will refuse and show you the versions
 that exist.
@@ -203,6 +205,7 @@ format is <yyyymmdd-hhmm>-metric-extraction-analysis-report.md.
 
 | Version | Timestamp | Author | Reason | Summary |
 |---|---|---|---|---|
+| 1.6 | 2026-10-07T09:20:00-05:00 | Not specified (drafted by Claude Code) | Rules version 3.1.0 released | Added 3.1.0 to Available versions; it is now the default. |
 | 1.5 | 2026-10-07T09:00:00-05:00 | Not specified (drafted by Claude Code) | Rules version 3.0.0 released | Added 3.0.0 to Available versions; it is now the default. Added a limit: score the current extraction with 3.0.0 or later. |
 | 1.4 | 2026-10-07T05:41:52-05:00 | Codex | Clarify document invocation and model provenance | A document invocation includes saving and read-back; the invoking assistant resolves its own model identity without asking the user. Annotation rules are unchanged. |
 | 1.3 | 2026-10-07T05:30:00-05:00 | Not specified (drafted by Claude Code) | Rules version 2.1.0 released | Added 2.1.0 to Available versions; it is now the default. Explained the requirement/metric labels and added a limit noting that only 2.1.0 runs carry them. |

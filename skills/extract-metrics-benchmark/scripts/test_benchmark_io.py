@@ -335,18 +335,20 @@ class BenchmarkIOTests(unittest.TestCase):
             self.io.validate(self.record, self.payload)
 
     def test_rules_3_retire_a2_a3_as_x15_x16(self):
-        self.assertEqual(self.payload['skill_version'], '3.0.0')
-        self.assertTrue({'X15', 'X16'} <= self.io.rule_ids('3.0.0'))
-        self.assertFalse({'A2', 'A3'} & self.io.rule_ids('3.0.0'))
-        self.payload['candidates'].append({'candidate_id': 'c2', 'decision': 'excluded',
+        for version in ('3.0.0', '3.1.0'):
+            with self.subTest(version=version):
+                self.assertTrue({'X15', 'X16'} <= self.io.rule_ids(version))
+                self.assertFalse({'A2', 'A3'} & self.io.rule_ids(version))
+                base = self.pinned(version)
+                base['candidates'].append({'candidate_id': 'c2', 'decision': 'excluded',
                                            'metric_ids': [], 'source_line_spans': ['2'],
                                            'rule_id': 'X15', 'reason': 'Pump housing shall be sealed.'})
-        self.io.validate(self.record, self.payload)
-        for rule in ('A2', 'A3'):
-            payload = copy.deepcopy(self.payload)
-            payload['candidates'][0]['rule_id'] = rule
-            with self.subTest(rule=rule), self.assertRaises(ValueError):
-                self.io.validate(self.record, payload)
+                self.io.validate(self.record, base)
+                for rule in ('A2', 'A3'):
+                    payload = copy.deepcopy(base)
+                    payload['candidates'][0]['rule_id'] = rule
+                    with self.subTest(rule=rule), self.assertRaises(ValueError):
+                        self.io.validate(self.record, payload)
 
     def test_rules_3_refuse_rows_with_nothing_to_measure(self):
         clause = 'Backup facilities shall comply with CJJ 27.'

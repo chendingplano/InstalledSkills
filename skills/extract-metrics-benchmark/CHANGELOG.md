@@ -18,9 +18,29 @@ Two kinds of change are tracked separately:
 | 2.0.0 | `rules/2.0.0.md` | Fixes from devdoc `2026100601-devdoc-gold-metrics-416-review` (S1–S8). See below. |
 | 2.1.0 | `rules/2.1.0.md` | Statement kind per row (ADR 2026100603) and representation fixes from the 2.0.0 audit of record 416. See below. |
 | 3.0.0 | `rules/3.0.0.md` | Requirements with nothing to measure are not metrics, matching `extract_metrics` since 2026-10-07. See below. |
+| 3.1.0 | `rules/3.1.0.md` | A4 never supplies the object: a duty to agree an activity's time or frequency is X2. See below. |
 
-Default when no version is named: the newest released version (currently 3.0.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
+Default when no version is named: the newest released version (currently 3.1.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
 because rows were already saved under those labels.
+
+### 3.1.0 — 2026-10-07
+
+Minor: a clarification. Read correctly, 3.0.0 already excluded these candidates (gate (a) admits an
+activity as the object only when the requirement is a number about it), but every reviewed run of
+record 416 (2.0.0, 2.1.0, 3.0.0) accepted them as A4, because A4 lists "set by agreement" without
+saying it needs an object. Follows `analysis-reports/20261007-0854-metric-extraction-analysis-report.md`
+§3.1 (run `20261007_083500`).
+
+- **Gate** (§2.1): A4's stand-in for the value does not make an activity an object. An activity's
+  time slot or clock time is not a measurable property.
+- **A4** (§2.2): the open quantity must belong to an object that passes gate (a).
+- **X2** (§2.3): covers a duty to agree, set or announce an activity's time, frequency or method, with
+  "约定餐厨垃圾收运的时间和频次" as an example.
+- **Audit** (§4): every A4 row's subject is an object, not an activity.
+- `validate` is unchanged: whether a subject is an object or an activity is not mechanically
+  checkable, so this stays a reviewer check.
+- Record 416: `416_gold_3` and `416_gold_4` of run `20261007_083500` (餐厨垃圾收运时间/频次) become one
+  X2 candidate; 33 rows remain. The daily-collection rows (1 次/日) stay A1.
 
 ### 3.0.0 — 2026-10-07
 
