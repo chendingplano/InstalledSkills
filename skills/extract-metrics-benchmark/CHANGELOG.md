@@ -21,9 +21,27 @@ Two kinds of change are tracked separately:
 | 3.1.0 | `rules/3.1.0.md` | A4 never supplies the object: a duty to agree an activity's time or frequency is X2. See below. |
 | 4.0.0 | `rules/4.0.0.md` | A quantity to be set or sized according to another factor, or by design, is a requirement (X17), not a metric. See below. |
 | 4.1.0 | `rules/4.1.0.md` | A4 rows are metrics with no value (`value_class = metric-with-no-value`) with typical values in `metric_desc`. See below. |
+| 5.0.0 | `rules/5.0.0.md` | Sizing duties (X17) are metrics with no value too: A4 covers values to be declared, agreed, or set/sized by another factor. X17 retired. See below. |
 
-Default when no version is named: the newest released version (currently 4.1.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
+Default when no version is named: the newest released version (currently 5.0.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
 because rows were already saved under those labels.
+
+### 5.0.0 — 2026-10-07
+
+Major: changes which assertions are metrics. Asked for by the user for consistency with 4.1.0: a
+sizing duty (堆肥设施(阳光房)应根据垃圾日处理量合理设置单室体积) names a real metric without a value, exactly
+like the declared 比能耗 and 发酵周期, so it is a metric with no value too.
+
+- **A4** (§2.2): a named quantity of an object whose value the document leaves open, to be declared,
+  agreed, or set/sized/chosen according to another factor or by design. Stored per §3.2
+  (`metric-with-no-value`, typical values in `metric_desc`); the sizing factor goes in `metric_desc`,
+  not `condition`.
+- **X17** retired (§2.3); its ID is not reused, and `validate` refuses it for 5.0.0.
+- **Gate** (§2.1 (c)): the stand-in is "the document names the quantity and leaves its value open".
+- Unchanged exclusions: an activity's open value (X2), cited-document values (X16), same-document
+  tables (D1), direction-only aspirations (X6).
+- Record 416: 单室体积 returns as an A4 row; expect 33 rows. `extract_metrics` keeps sizing duties as
+  `limit_absent`, so they now match instead of scoring as false positives.
 
 ### 4.1.0 — 2026-10-07
 

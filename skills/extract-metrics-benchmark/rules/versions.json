@@ -53,6 +53,12 @@
       "sha256": "a9aaf7e60fa7dfbaa68827ec0696190c0e267ac5c2717950691b7da09e41ba26",
       "released": "2026-10-07",
       "notes": "A4 rows are metrics with no value: value_class metric-with-no-value, and metric_desc explains the metric and gives marked typical values (domain knowledge). Same assertions are metrics as in 4.0.0."
+    },
+    "5.0.0": {
+      "rules": "5.0.0.md",
+      "sha256": "b8b1a86ccc87a05ab7b8fcce733ab590b82ce6381f4e0ef60a571df5ee14f312",
+      "released": "2026-10-07",
+      "notes": "Sizing duties (4.x X17) are metrics with no value: A4 now covers values left open to be declared, agreed, or set/sized by another factor or by design. X17 retired."
     }
   }
 }

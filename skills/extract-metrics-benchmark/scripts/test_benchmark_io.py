@@ -363,6 +363,17 @@ class BenchmarkIOTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.io.validate(self.record, old)
 
+    def test_rules_5_retire_x17_sizing_duties_are_a4(self):
+        self.assertIn('X17', self.io.rule_ids('4.1.0'))
+        self.assertNotIn('X17', self.io.rule_ids('5.0.0'))
+        self.assertEqual(self.io.rule_ids('4.1.0') - {'X17'}, self.io.rule_ids('5.0.0'))
+        payload = self.pinned('5.0.0')
+        payload['candidates'].append({'candidate_id': 'c2', 'decision': 'excluded', 'metric_ids': [],
+                                      'source_line_spans': ['2'], 'rule_id': 'X17',
+                                      'reason': 'Tank volume sized for daily throughput; no value.'})
+        with self.assertRaises(ValueError):
+            self.io.validate(self.record, payload)
+
     def test_rules_4_1_a4_rows_are_metrics_with_no_value(self):
         clause = 'The pump shall state its specific energy consumption.'
         self.source.write_text(
@@ -382,6 +393,7 @@ class BenchmarkIOTests(unittest.TestCase):
             return p
 
         self.io.validate(self.record, payload('4.1.0', value_class='metric-with-no-value'))
+        self.io.validate(self.record, payload('5.0.0', value_class='metric-with-no-value'))
         self.io.validate(self.record, payload('4.0.0', value_class='requirement'))
         self.assertEqual(self.io.statement_kind(payload('4.1.0', value_class='metric-with-no-value')
                                                 ['metrics'][0]), 'requirement_value_open')
