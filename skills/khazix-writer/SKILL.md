@@ -2,6 +2,7 @@
 name: khazix-writer
 description: |
   当用户需要撰写公众号文章、写稿子、续写文章、根据素材产出长文时使用。触发词包括但不限于：Write a deep research document (写深度分析文章), save it in <dir> with the name <article-name>。即使用户只是说"帮我把这个写成文章"或"用我的风格写一下"，只要上下文涉及深度分析文章，都应该触发。也适用于用户丢过来一个PDF、brief、新闻链接、语音转文字或任何素材说"帮我写篇文章"的场景。不要用于短内容或纯标题摘要生成。
+disable-model-invocation: true
 ---
 
 # 卡兹克公众号长文写作

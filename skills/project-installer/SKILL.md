@@ -1,6 +1,7 @@
 ---
 name: project-installer
 description: Install a project or a skill from a URL. Triggers when the user says "install this project" or "install this skill" followed by a URL, with an optional project or skill name.
+disable-model-invocation: true
 ---
 
 # Project Installer

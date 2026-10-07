@@ -1,6 +1,7 @@
 ---
 name: pdf-table-metric-extractor
 description: "Analyze tables extracted from PDF engineering or standards documents to identify whether the table defines quantifiable metrics (measurements, specifications, dimensional data, performance limits, tolerance values, etc.), extract each metric into a Metric Record, and group all records into a Metric Package for relational database storage. Use when given an HTML table from a PDF along with surrounding context text and document metadata (DocName, DocNo, Page, BoundingBox, TableCaption), and the task is to extract structured metric data. Applies to Chinese and English engineering standards, technical specifications, product standards, and similar documents."
+disable-model-invocation: true
 ---
 
 # PDF Table Metric Extractor

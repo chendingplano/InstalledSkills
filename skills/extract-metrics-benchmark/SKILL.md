@@ -1,6 +1,7 @@
 ---
 name: extract-metrics-benchmark
 description: Build an independently reviewed metric benchmark for a document identified by kb.inputs.id. Read its complete canonical line file, audit completeness and correctness, and save evidence-backed metric snapshots in testbed.metrics for evaluating extract_metrics. Use for gold metrics, ground truth, or benchmark extraction; ordinary production extraction remains in kb.metrics.
+disable-model-invocation: true
 ---
 
 # Extract Metrics Benchmark

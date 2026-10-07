@@ -8,6 +8,7 @@ description:
 metadata:
   author: 一泽Eze
   version: "2.5.0"
+disable-model-invocation: true
 ---
 
 # web-access Skill

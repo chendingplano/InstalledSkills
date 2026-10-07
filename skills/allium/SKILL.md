@@ -4,6 +4,7 @@ description: An LLM-native language for sharpening intent alongside implementati
 auto_trigger:
   - file_patterns: ["**/*.allium"]
   - keywords: ["allium", "allium spec", "allium specification", ".allium file"]
+disable-model-invocation: true
 ---
 
 # Allium

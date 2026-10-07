@@ -1,6 +1,7 @@
 ---
 name: prod-release
 description: "Prepare and publish a production release for a workspace project. Triggers when the user says 'prepare production release for PROJECT-NAME' or similar, optionally with 'use jj' or 'use git'. Supports both jj and git repos, auto-detecting which VCS is in use. Handles validating the project exists, computing a unique release name (rel-yyyymmdd), updating CHANGELOG.md, pushing both the project repo and shared/ repo to GitHub, and creating version tags in both repos."
+disable-model-invocation: true
 ---
 
 # Production Release Skill

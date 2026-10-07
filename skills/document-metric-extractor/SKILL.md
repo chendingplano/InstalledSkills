@@ -1,6 +1,7 @@
 ---
 name: document-metric-extractor
 description: Extract and normalize quantitative metrics from line-based document extracts, including prose, bullets, and tables, with conservative precision-first classification and structured output for storage in `kb.metrics`. Use when the user provides an input filename plus a `record_id` from `kb.inputs.id`, and requests identifying measurable indicators, thresholds, targets, rates, scores, or KPI-like values from technical, compliance, standards, or requirements documents.
+disable-model-invocation: true
 ---
 
 # Document Metric Extractor

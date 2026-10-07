@@ -1,6 +1,7 @@
 ---
 name: user-manual-writer
 description: Use when creating, revising, translating, or localizing end-user manuals, including requests involving plain-language explanations, examples, keywords, metadata, change history, versions, or Markdown, Typst, and HTML output.
+disable-model-invocation: true
 ---
 
 # User Manual Writer
