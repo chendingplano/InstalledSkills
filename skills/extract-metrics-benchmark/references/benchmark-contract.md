@@ -80,7 +80,7 @@ Populate the prepared payload; retain its ID/path/hash/run ID/skill name/skill v
 
 Benchmark-local `metric_id` convention: `<record_id>_gold_<seqno>`; not a production metric/candidate ID. Ledger IDs are unique within a review. Accepted candidates link final metrics; excluded candidates link none; duplicate candidates link retained metrics. Uncertain decisions or nonempty `limitations` block saving.
 
-**Rules 2.0.0 and later.** Each candidate carries `rule_id`, one of the bold rule IDs in that version's rules file: an `A` rule for `accepted`, an `X` rule for `excluded`, `D1` for `duplicate`. `validate` reads the IDs from the rules file. Payloads for rules 1.x need no `rule_id` and keep their original checks.
+**Rules 2.0.0 and later.** Each candidate carries `rule_id`, one of the bold rule IDs in that version's rules file: an `A` rule for `accepted`, an `X` rule for `excluded`, `D1` for `duplicate`. `validate` reads the IDs from the rules file. Payloads for rules 1.x need no `rule_id` and keep their original checks. From rules 3.0.0 there is no A2 or A3; inspection and delegated requirements are `excluded` with X15 or X16, one candidate per requirement, and the reason names the object and, for X16, each cited document (`NY 884`).
 
 Use **storage names** (`metric_subject`, `metric_desc`, `metric_context`, `metric_keywords`, `metric_unit`), not enrichment aliases (`subject`, `desc`, `context`, `keywords`, `unit`). Empty source-absent text is `""`; absent endpoints are null. Arrays remain JSON arrays.
 
@@ -94,6 +94,7 @@ Use **storage names** (`metric_subject`, `metric_desc`, `metric_context`, `metri
 | `metric_value` (rules ≥ 2.0.0) | The bare number, never a comparator (`100`, not `<100`); the comparator is `value_range_type` plus `threshold_or_target` |
 | `reasoning_tags` (rules ≥ 2.0.0) | `strict_bound` marks a strict `lower_bound`/`upper_bound` (> or <); `test_condition` marks a numeric test-method setting (rule A6) and is not allowed on qualitative/limit_absent rows |
 | `reasoning_tags` (rules ≥ 2.1.0) | Exactly one `kind:<kind>`: `requirement_with_criterion`, `requirement_value_open`, `inspection_requirement`, `delegated_requirement`, `test_parameter`, `metric_definition`, `metric_value`, `observation`. `validate` derives the kind from the row (`statement_kind` in `benchmark_io.py`, mirroring ChenWeb `web/src/lib/metric-statement-kind.ts`) and refuses a mismatch. `interpretation_bound` marks an interpretation cut-off: `value_class = definition`, `lower_bound`/`upper_bound`. `cited_doc:<identifier>` has a space before the number (`cited_doc:NY 884`); `value_class = reference` requires `external_reference` |
+| `reasoning_tags` (rules ≥ 3.0.0) | The kind is never `inspection_requirement`, `delegated_requirement` or `observation`, and no row carries `value_class = reference`, `external_reference` or `cited_doc:`: those requirements are excluded candidates (`rule_id` X15/X16) that link no metric |
 | `value_data_type` | Describe the actual stored value representation (for example `number`); empty for qualitative/limit_absent rows with no scalar value |
 | `value_min`, `value_max` | Finite JSON numbers for range only, lower ≤ upper |
 | `condition` | Source-stated applicability; empty if absent |

@@ -35,10 +35,14 @@ NUMERIC_RANGE_TYPES = {'lower_bound', 'upper_bound', 'exact', 'range'}
 STATEMENT_KINDS = {'requirement_with_criterion', 'requirement_value_open', 'inspection_requirement',
                    'delegated_requirement', 'test_parameter', 'metric_definition', 'metric_value',
                    'observation'}
+# Rules 3.0.0+: requirements with nothing to measure are excluded (X15, X16), as extract_metrics
+# drops them; a non-numeric observation is X15.
+PURE_REQUIREMENT_KINDS = {'inspection_requirement', 'delegated_requirement', 'observation'}
 
 
 def statement_kind(metric):
-    """Kind of a metric row, by the same rules as ChenWeb web/src/lib/metric-statement-kind.ts."""
+    """Kind of a metric row, by the same rules as ChenWeb web/src/lib/metric-statement-kind.ts
+    and server/api/doc-processing/metric_statement_kind.go; change all three together."""
     value_class = metric['value_class'].strip().lower()
     range_type = metric['value_range_type'].strip().lower()
     numeric = range_type in NUMERIC_RANGE_TYPES
@@ -214,6 +218,8 @@ def validate(record, payload):
     gated = version_key(payload['skill_version'])[0] >= 2
     # Checks introduced with rules 2.1.0: statement kind, reference rows, interpretation cut-offs.
     gated_2_1 = version_key(payload['skill_version'])[:3] >= (2, 1, 0)
+    # Checks introduced with rules 3.0.0: only rows with a measurable property are metrics.
+    gated_3 = version_key(payload['skill_version'])[0] >= 3
     rules = rule_ids(payload['skill_version']) if gated else set()
     require(isinstance(payload.get('model_name'), str) and payload['model_name'].strip(),
             'Missing model_name')
@@ -279,6 +285,13 @@ def validate(record, payload):
                         metric['value_class'] == 'definition' and
                         metric['value_range_type'] in ('lower_bound', 'upper_bound')),
                     f'{metric["metric_id"]}: interpretation_bound rows are definition bounds')
+            if gated_3:
+                require(kinds[0] not in PURE_REQUIREMENT_KINDS,
+                        f'{metric["metric_id"]}: kind:{kinds[0]} has nothing to measure; '
+                        'record it as an X15/X16 candidate, not a metric')
+                require(metric['value_class'] != 'reference' and not any(
+                            t == 'external_reference' or t.startswith('cited_doc:') for t in tags),
+                        f'{metric["metric_id"]}: a delegation to a cited document is X16, not a metric')
             for tag in tags:
                 if tag.startswith('cited_doc:'):
                     require(not re.match(r'[A-Za-z/]+[0-9]', tag[len('cited_doc:'):]),

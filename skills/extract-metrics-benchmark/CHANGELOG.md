@@ -17,9 +17,30 @@ Two kinds of change are tracked separately:
 | 1.2.0 | `rules/1.0.0.md` | Alias: released as a tooling-only change (skill_name, model_name columns); rules identical to 1.0.0. |
 | 2.0.0 | `rules/2.0.0.md` | Fixes from devdoc `2026100601-devdoc-gold-metrics-416-review` (S1–S8). See below. |
 | 2.1.0 | `rules/2.1.0.md` | Statement kind per row (ADR 2026100603) and representation fixes from the 2.0.0 audit of record 416. See below. |
+| 3.0.0 | `rules/3.0.0.md` | Requirements with nothing to measure are not metrics, matching `extract_metrics` since 2026-10-07. See below. |
 
-Default when no version is named: the newest released version (currently 2.1.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
+Default when no version is named: the newest released version (currently 3.0.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
 because rows were already saved under those labels.
+
+### 3.0.0 — 2026-10-07
+
+Major: changes which assertions are metrics. Follows ADR 2026100603 DR1/DR3 (amended 2026-10-07)
+and ChenWeb openspec change `exclude-pure-requirements-from-metrics`: `extract_metrics` (candidates
+prompt v11, enrich prompt v8) no longer stores inspection or delegated requirements, so 2.x gold
+rows of those kinds count against an extractor that is doing what it was asked.
+
+- **Gate** (§2.1): property (b) must be measurable, a quantity; the delegation stand-in in (c) is
+  removed. A4 (value left open) is the only stand-in.
+- **A2 → X15, A3 → X16**: inspection requirements and delegations to an identified document are
+  excluded, but each is still one ledger candidate, split like a metric, with the object and (for
+  X16) the cited documents in its reason (§2.4). The ledger is the answer key for the
+  extractor's `exclude_pure_requirements` log.
+- **A4 narrowed**: a value set by a cited document is X16 even when the clause names a quantity
+  (粪大肠菌群数应达到 NY884 的要求); a pointer to the document's own table is D1.
+- **Kinds** (§3.1): no accepted row is `inspection_requirement`, `delegated_requirement` or
+  `observation`; the only accepted `qualitative` rows are A5 definitions.
+- Record 416: of the 66 rows of 2.1.0 run `20261007_054115`, the 31 inspection/delegated rows
+  become X15/X16; 35 rows remain. `extract_metrics` stored 36 on 2026-10-07 (prompt v8).
 
 ### 2.1.0 — 2026-10-07
 
@@ -67,6 +88,16 @@ under 1.0.0, about 64 hold up under the review).
   states kept only when presence/absence is observable (A2), subjective ones excluded (X11).
 
 ## Tooling changes
+
+### 2026-10-07 — validation and scoring for rules 3.0.0
+- `validate` gates on rules ≥ 3.0.0: an accepted row may not have kind `inspection_requirement`,
+  `delegated_requirement` or `observation`, nor `value_class = reference`, `external_reference` or
+  `cited_doc:`. Rule IDs come from the rules file, so A2/A3 are refused there. 2.x and 1.x payloads
+  validate unchanged; the 2.1.0 tests now pin 2.1.0 explicitly.
+- `SKILL.md` points at the current default prompts (enrich v8, candidates v11) and says how to score
+  `extract_metrics`: gold rows against `kb.metrics`, X15/X16 candidates against the
+  `exclude_pure_requirements` log; a 2.1.0 run stands in only with its pure-requirement rows dropped.
+- `references/benchmark-contract.md`: the 3.0.0 tag and rule constraints.
 
 ### 2026-10-07 — document invocation completes persistence
 - Invoking the skill for a document authorizes extraction, audit, validation, save to `testbed.metrics`, and read-back; only an explicit draft-only/no-save request omits persistence.

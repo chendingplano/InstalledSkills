@@ -5,16 +5,16 @@
 | title | Extract Metrics Benchmark — User Manual |
 | language | en |
 | format | markdown |
-| version | 1.3 |
+| version | 1.5 |
 | status | Draft |
 | author | Not specified |
 | owner | Not specified |
 | audience | People who run or review gold-metric benchmarks through a coding assistant; no programming needed |
 | create-time | 2026-10-06T08:30:04-05:00 |
-| last-modify-time | 2026-10-07T05:30:00-05:00 |
+| last-modify-time | 2026-10-07T09:00:00-05:00 |
 | keywords | gold metrics, benchmark, ground truth, extract_metrics, metric extraction quality, testbed.metrics, skill version, rules version, Claude Code, Codex, compare versions |
 
-This manual has its own version number (1.3), which is separate from the skill's rules versions listed
+This manual has its own version number (1.5), which is separate from the skill's rules versions listed
 under [Available versions](#available-versions).
 
 ## 1. What this skill is
@@ -130,15 +130,17 @@ date.
 | 1.2.0 | `rules/1.0.0.md` | 2026-10-06 | Same rules as 1.0.0. Exists only because of an earlier labelling step. |
 | 2.0.0 | `rules/2.0.0.md` | 2026-10-06 | Corrected rules from the review report. A metric must name an object, a property you can measure or inspect, and a value or concrete criterion. Instructions to people, duties, plans, slogans, licences and "tidy"-type wording are no longer metrics. Expect about half as many gold metrics as 1.x. Each decision records the rule that made it. |
 | 2.1.0 | `rules/2.1.0.md` | 2026-10-07 | Same choice of what counts as a metric as 2.0.0. Each gold metric now also says what it is to an expert: a requirement (with a number, with the value set elsewhere, inspection-only, or pointing to another standard), a metric value, a test setting or a definition. These are the same labels the ChenWeb pages show, so you can score requirements and metrics separately. It also fixes how a few things are written down (interpretation thresholds, conditions, measurement basis, "daily" schedules, standard numbers). |
+| 3.0.0 | `rules/3.0.0.md` | 2026-10-07 | A metric must be something you can **measure**. Requirements with nothing to measure are no longer metrics: "the bin shall have a lid" (an inspection requirement) and "shall comply with CJJ 52" (a requirement that points to another standard). This matches the automatic extraction since 2026-10-07, which no longer saves these. The answer key still lists them, as excluded requirements, so you can check that the extraction set them aside. For document 416 this leaves 35 of 2.1.0's 66 gold metrics. |
 
-**If you don't name a version, the newest one is used** (the highest version number; currently 2.1.0).
+**If you don't name a version, the newest one is used** (the highest version number; currently 3.0.0).
 Draft versions marked as pre-releases, such as `2.0.0-rc.1`, are used only when you name them. The
 assistant tells you which version it used.
 
 Because 1.0.0, 1.1.0 and 1.2.0 use identical rules, running any of them gives the same instructions
 (i.e., versions 1.0.0, 1.1.0 and 1.2.0 are identical, for historical reasons). Version **2.0.0** is the
 corrected rule set based on the review report. Version **2.1.0** keeps 2.0.0's decisions and adds the
-requirement/metric labels.
+requirement/metric labels. Version **3.0.0** drops the requirements that have nothing to measure; use it
+to score the current automatic extraction.
 
 If you ask for a version that isn't in the list, the assistant will refuse and show you the versions
 that exist.
@@ -180,6 +182,9 @@ format is <yyyymmdd-hhmm>-metric-extraction-analysis-report.md.
 - **Answer keys are judgments.** The skill checks its work, but a run is only as good as its rules
   version. Runs made with version 1.0.0, 1.1.0 or 1.2.0 include many items that are not real metrics,
   so don't use them to score `extract_metrics`. Re-run the document with version 2.0.0 or later.
+- **Score today's automatic extraction with version 3.0.0 or later.** Since 2026-10-07 the extraction
+  no longer saves inspection requirements or requirements that point to another standard. Version 2.x
+  answer keys still count them as metrics, so they would make the extraction look worse than it is.
 - **Requirement/metric labels exist only from version 2.1.0.** Runs made with 2.0.0 or earlier don't
   carry them; re-run the document with 2.1.0 to get them.
 - **The Gold Metrics page shows one run per document**: the latest run for the chosen skill version
@@ -198,6 +203,7 @@ format is <yyyymmdd-hhmm>-metric-extraction-analysis-report.md.
 
 | Version | Timestamp | Author | Reason | Summary |
 |---|---|---|---|---|
+| 1.5 | 2026-10-07T09:00:00-05:00 | Not specified (drafted by Claude Code) | Rules version 3.0.0 released | Added 3.0.0 to Available versions; it is now the default. Added a limit: score the current extraction with 3.0.0 or later. |
 | 1.4 | 2026-10-07T05:41:52-05:00 | Codex | Clarify document invocation and model provenance | A document invocation includes saving and read-back; the invoking assistant resolves its own model identity without asking the user. Annotation rules are unchanged. |
 | 1.3 | 2026-10-07T05:30:00-05:00 | Not specified (drafted by Claude Code) | Rules version 2.1.0 released | Added 2.1.0 to Available versions; it is now the default. Explained the requirement/metric labels and added a limit noting that only 2.1.0 runs carry them. |
 | 1.2 | 2026-10-06T10:30:00-05:00 | Not specified (drafted by Claude Code) | Rules version 2.0.0 released | Added 2.0.0 to Available versions; it is now the default. Limits now say to re-run with 2.0.0. |

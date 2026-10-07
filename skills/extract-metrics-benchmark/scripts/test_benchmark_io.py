@@ -123,7 +123,7 @@ class BenchmarkIOTests(unittest.TestCase):
         self.source.write_text(
             '1\t1\theading\tArial\t12\t[0,0,100,20]\tPump requirements\n'
             f'2\t1\tparagraph\tArial\t10\t[0,20,100,40]\t{clause}\n', encoding='utf-8')
-        self.payload['source_sha256'] = self.io.prepare(self.record, 'test-model')['source_sha256']
+        self.payload = self.pinned('2.1.0')  # delegations are metrics only before rules 3.0.0
         metric = self.payload['metrics'][0]
         metric.update(metric_name='Backup facilities configuration', metric_subject='Backup facilities',
                       value_range_type='qualitative', value_class='reference', metric_unit='',
@@ -295,7 +295,7 @@ class BenchmarkIOTests(unittest.TestCase):
                 self.assertEqual(self.io.statement_kind(row), kind)
 
     def test_rules_2_1_require_a_matching_statement_kind(self):
-        self.assertEqual(self.payload['skill_version'], '2.1.0')
+        self.payload = self.pinned('2.1.0')
         self.io.validate(self.record, self.payload)
         for tags in (['has_threshold'],
                      ['kind:requirement_with_criterion', 'kind:metric_value'],
@@ -322,7 +322,7 @@ class BenchmarkIOTests(unittest.TestCase):
         self.source.write_text(
             '1\t1\theading\tArial\t12\t[0,0,100,20]\tPump requirements\n'
             f'2\t1\tparagraph\tArial\t10\t[0,20,100,40]\t{clause}\n', encoding='utf-8')
-        self.payload['source_sha256'] = self.io.prepare(self.record, 'test-model')['source_sha256']
+        self.payload = self.pinned('2.1.0')
         self.payload['metrics'][0].update(
             metric_name='Backup facilities', metric_subject='Backup facilities',
             value_range_type='qualitative', value_class='reference', metric_unit='', metric_value='',
@@ -333,6 +333,51 @@ class BenchmarkIOTests(unittest.TestCase):
         self.payload['metrics'][0]['reasoning_tags'][1] = 'cited_doc:NY884'
         with self.assertRaises(ValueError):
             self.io.validate(self.record, self.payload)
+
+    def test_rules_3_retire_a2_a3_as_x15_x16(self):
+        self.assertEqual(self.payload['skill_version'], '3.0.0')
+        self.assertTrue({'X15', 'X16'} <= self.io.rule_ids('3.0.0'))
+        self.assertFalse({'A2', 'A3'} & self.io.rule_ids('3.0.0'))
+        self.payload['candidates'].append({'candidate_id': 'c2', 'decision': 'excluded',
+                                           'metric_ids': [], 'source_line_spans': ['2'],
+                                           'rule_id': 'X15', 'reason': 'Pump housing shall be sealed.'})
+        self.io.validate(self.record, self.payload)
+        for rule in ('A2', 'A3'):
+            payload = copy.deepcopy(self.payload)
+            payload['candidates'][0]['rule_id'] = rule
+            with self.subTest(rule=rule), self.assertRaises(ValueError):
+                self.io.validate(self.record, payload)
+
+    def test_rules_3_refuse_rows_with_nothing_to_measure(self):
+        clause = 'Backup facilities shall comply with CJJ 27.'
+        self.source.write_text(
+            '1\t1\theading\tArial\t12\t[0,0,100,20]\tPump requirements\n'
+            f'2\t1\tparagraph\tArial\t10\t[0,20,100,40]\t{clause}\n', encoding='utf-8')
+        delegated = dict(metric_name='Backup facilities', metric_subject='Backup facilities',
+                         value_range_type='qualitative', value_class='reference', metric_unit='',
+                         metric_value='', is_explicit_metric=False, threshold_or_target=clause,
+                         reasoning_tags=['external_reference', 'cited_doc:CJJ 27',
+                                         'kind:delegated_requirement'],
+                         evidence=[{'line': 2, 'quote': clause}])
+        inspection = dict(delegated, value_class='requirement',
+                          reasoning_tags=['kind:inspection_requirement'])
+        for fields, rule in ((delegated, 'A3'), (inspection, 'A2')):
+            old = self.pinned('2.1.0')
+            old['metrics'][0].update(copy.deepcopy(fields))
+            old['candidates'][0]['rule_id'] = rule
+            self.io.validate(self.record, old)
+            new = self.pinned('3.0.0')
+            new['metrics'][0].update(copy.deepcopy(fields))
+            with self.subTest(rule=rule), self.assertRaises(ValueError):
+                self.io.validate(self.record, new)
+        # A delegation stored as a value-open requirement (how extract_metrics escaped its filter
+        # on record 416) is still refused: its cited_doc tag makes it a delegation.
+        disguised = self.pinned('3.0.0')
+        disguised['metrics'][0].update(copy.deepcopy(delegated))
+        disguised['metrics'][0].update(value_class='requirement', value_range_type='limit_absent',
+                                       reasoning_tags=['cited_doc:CJJ 27', 'kind:requirement_value_open'])
+        with self.assertRaises(ValueError):
+            self.io.validate(self.record, disguised)
 
     def test_rules_1_payloads_keep_their_original_checks(self):
         payload = self.io.prepare(self.record, 'test-model', '1.0.0')

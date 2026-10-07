@@ -29,6 +29,12 @@
       "sha256": "1253a81344e4b6f2bc8f2ffc7945d980bed112b40ba6c6547120f18190784823",
       "released": "2026-10-07",
       "notes": "Statement kind per row (ADR 2026100603); one representation for interpretation cut-offs, conditions, measurement basis, schedules and cited_doc identifiers; A4/X10/X13/A3 clarifications from the 416 audit."
+    },
+    "3.0.0": {
+      "rules": "3.0.0.md",
+      "sha256": "08c2e3136779d2f4c75b72efa62f43a9fcceecc363cdec463de5fb6726d55ec5",
+      "released": "2026-10-07",
+      "notes": "Pure requirements are not metrics (ADR 2026100603 DR1/DR3, openspec exclude-pure-requirements-from-metrics): A2/A3 retired as X15/X16; A4 excludes values set by a cited document or another clause/table."
     }
   }
 }
