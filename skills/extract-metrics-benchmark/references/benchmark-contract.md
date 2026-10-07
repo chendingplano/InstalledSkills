@@ -106,11 +106,11 @@ Use **storage names** (`metric_subject`, `metric_desc`, `metric_context`, `metri
 | `metric_categories` | One or more meaningful keys, never hierarchy paths |
 | `annotation_notes` | Optional source-interpretation, tolerance/comparator, table-context or category rationale; saved in `ext_info` |
 
-For non-English sources add applicable `metric_name_en`, `metric_subject_en`, `metric_desc_en`, `metric_context_en`, `metric_keywords_en`, `metric_unit_en`, `value_class_en`. English rows store them null. The helper supplies document/run IDs, filename/hash, `skill_name` (from `SKILL.md` frontmatter `name`), `skill_version` and `rules_sha256` (from `prepare --skill-version`, checked against `rules/versions.json`; validation fails for an unknown version or an edited released rules file; the hash is kept in `ext_info.rules_sha256`), `model_name` (from `prepare --model-name`; required) and `ext_info` (language, schema version `2`, evidence, ledgers and reviews). Title/doc number use `doc_metadata` with top-level fallback. It records only the model ID it is given and generates no prompt claims or production event IDs.
+For non-English sources add applicable `metric_name_en`, `metric_subject_en`, `metric_desc_en`, `metric_context_en`, `metric_keywords_en`, `metric_unit_en`, `value_class_en`. English rows store them null. The helper supplies document/run IDs, filename/hash, `skill_name` (from `SKILL.md` frontmatter `name`), `skill_version` and `rules_sha256` (from `prepare --skill-version`, checked against `rules/versions.json`; validation fails for an unknown version or an edited released rules file; the hash is kept in the run row), `model_name` (from `prepare --model-name`; required) and per-row `ext_info` (schema version `3`: `evidence`, `annotation_notes`, and `candidate_ids`, the ledger entries that accepted or duplicate the row). The run's audit record (language, rules hash, title/doc number, `coverage`, `candidates`, reviews, `reviewed_at`) is stored once, in `testbed.metric_benchmark_runs`, not on every row. Title/doc number use `doc_metadata` with top-level fallback. It records only the model ID it is given and generates no prompt claims or production event IDs.
 
 ## Table provisioning and save
 
-Committed schema: `ChenWeb/project_migrations/20261006000001_create_testbed_metrics.sql`, plus `20261006000002_add_skill_version_to_testbed_metrics.sql` (`skill_version TEXT NOT NULL`; rows saved before versioning were backfilled as `1.0.0`), plus `20261006000003_add_skill_and_model_name_to_testbed_metrics.sql` (`skill_name`, `model_name`, both `TEXT NOT NULL`; run `22aa157c` backfilled as `extract-metrics-benchmark` / `gpt-6.1-sol`). Startup runs project migrations through `server/cmd/config/config.go`. Use the Goose project track, `ChenWeb/project_migrations`, and existing `project_db_migration` version table. Follow db-migration skill guidance for credentials/execution; never test rollback against valuable benchmark data. The schema excludes production search indexes/triggers/category side effects.
+Committed schema: `ChenWeb/project_migrations/20261006000001_create_testbed_metrics.sql`, plus `20261006000002_add_skill_version_to_testbed_metrics.sql` (`skill_version TEXT NOT NULL`; rows saved before versioning were backfilled as `1.0.0`), plus `20261006000003_add_skill_and_model_name_to_testbed_metrics.sql` (`skill_name`, `model_name`, both `TEXT NOT NULL`; run `22aa157c` backfilled as `extract-metrics-benchmark` / `gpt-6.1-sol`), `20261006000004_timestamp_run_id_for_testbed_metrics.sql` (`yyyymmdd_hhmmss` run IDs), `20261007000001_allow_metric_with_no_value_in_testbed_metrics.sql` (`value_class` `metric-with-no-value`) and `20261007000002_metric_benchmark_runs_for_testbed_metrics.sql` (`testbed.metric_benchmark_runs`, one row per run, primary key = the run key; `testbed.metrics` references it; runs saved earlier were moved there and their rows reduced to schema `3` `ext_info`). Startup runs project migrations through `server/cmd/config/config.go`. Use the Goose project track, `ChenWeb/project_migrations`, and existing `project_db_migration` version table. Follow db-migration skill guidance for credentials/execution; never test rollback against valuable benchmark data. The schema excludes production search indexes/triggers/category side effects.
 
 Inspect before saving:
 
@@ -130,7 +130,7 @@ python3 .agents/skills/extract-metrics-benchmark/scripts/benchmark_io.py save \
   --record /tmp/metrics-123-record.json --payload /tmp/metrics-123-benchmark.json
 ```
 
-The helper sends fixed-identifier, quoted JSON SQL through `psql` stdin with `ON_ERROR_STOP=1`. All rows insert atomically. A run key (`skill_name`, `skill_version`, `model_name`, `benchmark_run_id`) is used once: the transaction takes an advisory lock on the key and aborts if any row already carries it, and the table enforces `UNIQUE (skill_name, skill_version, model_name, benchmark_run_id, metric_id)` plus the `yyyymmdd_hhmmss` format. Fresh runs append snapshots; nothing is replaced. After an ambiguous connection failure, query by the run key before retrying; a refused save of an already-saved key means the run is already stored.
+The helper sends fixed-identifier, quoted JSON SQL through `psql` stdin with `ON_ERROR_STOP=1`. The run row and all metric rows insert atomically, run row first. A run key (`skill_name`, `skill_version`, `model_name`, `benchmark_run_id`) is used once: the transaction takes an advisory lock on the key and aborts if any row already carries it, and the table enforces `UNIQUE (skill_name, skill_version, model_name, benchmark_run_id, metric_id)` plus the `yyyymmdd_hhmmss` format. Fresh runs append snapshots; nothing is replaced. After an ambiguous connection failure, query by the run key before retrying; a refused save of an already-saved key means the run is already stored.
 
 Read back, substituting the prepared run key:
 
@@ -144,6 +144,14 @@ WHERE input_record_id = :'record_id'::bigint AND benchmark_run_id = :'run_id'
   AND skill_name = 'extract-metrics-benchmark' AND skill_version = :'skill_version'
   AND model_name = :'model_name';
 SQL
+```
+
+and the run's audit record (compare `candidates`, `coverage` and reviews to the payload):
+
+```sql
+SELECT to_jsonb(r) FROM testbed.metric_benchmark_runs r
+WHERE benchmark_run_id = :'run_id' AND skill_name = 'extract-metrics-benchmark'
+  AND skill_version = :'skill_version' AND model_name = :'model_name';
 ```
 
 Compare all substantive fields/excerpts/hash to validated JSON, allowing only database-managed ID/time fields and helper-generated audit timestamps. Numeric endpoints may deserialize as floats. Report the explicit evaluation run ID; never count multiple snapshots together. An empty verified document retains local review JSON but creates no rows. If DB access is unavailable, retain validated JSON and report persistence pending; artifacts alone are not a saved benchmark.

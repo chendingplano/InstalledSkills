@@ -26,7 +26,7 @@ class PostgresIOTests(unittest.TestCase):
         workspace = script.parents[4]
         migrations = [path.read_text().split('-- +goose Down') for path in
                       sorted((workspace / 'ChenWeb/project_migrations').glob('*testbed_metrics.sql'))]
-        self.assertGreaterEqual(len(migrations), 3)
+        self.assertGreaterEqual(len(migrations), 6)
         up = '\n'.join(m[0] for m in migrations)
         down = '\n'.join(m[1] for m in reversed(migrations))
         with tempfile.TemporaryDirectory(prefix='metric-benchmark-pg-') as scratch:
@@ -56,6 +56,7 @@ class PostgresIOTests(unittest.TestCase):
                 sql('BEGIN;\n' + up + '\nCOMMIT;')
                 sql('BEGIN;\n' + down + '\nCOMMIT;')
                 self.assertEqual(sql("SELECT to_regclass('testbed.metrics') IS NULL;"), 't')
+                self.assertEqual(sql("SELECT to_regclass('testbed.metric_benchmark_runs') IS NULL;"), 't')
                 sql('BEGIN;\n' + up + '\nCOMMIT;')
                 record = fixture.record
                 quote = lambda text: "'" + text.replace("'", "''") + "'"
@@ -72,6 +73,11 @@ class PostgresIOTests(unittest.TestCase):
                 self.assertEqual(saved[0]['skill_version'], fixture.io.newest_version())
                 self.assertEqual(saved[0]['skill_name'], fixture.io.skill_name())
                 self.assertEqual(saved[0]['model_name'], 'test-model')
+                saved_run = json.loads(sql('SELECT to_jsonb(r) FROM testbed.metric_benchmark_runs r;'))
+                self.assertEqual(saved_run['candidates'], fixture.payload['candidates'])
+                self.assertEqual(saved_run['coverage'], fixture.payload['coverage'])
+                self.assertEqual(saved_run['benchmark_run_id'], fixture.payload['benchmark_run_id'])
+                self.assertNotIn('candidates', saved[0]['ext_info'])
                 sql(save, succeeds=False)
                 sql(fixture.io.save_sql(dict(record, staging_filename='wrong.pdf'),
                                         fixture.payload, rows), succeeds=False)
@@ -79,10 +85,19 @@ class PostgresIOTests(unittest.TestCase):
                           dict(rows[0], metric_id='broken', source_line_spans={})]
                 sql(fixture.io.save_sql(record, fixture.payload, broken), succeeds=False)
                 self.assertEqual(sql('SELECT count(*) FROM testbed.metrics;'), '1')
+                self.assertEqual(sql('SELECT count(*) FROM testbed.metric_benchmark_runs;'), '1')
                 # A new run key appends a new snapshot; the first run is untouched.
                 rerun = dict(fixture.payload, benchmark_run_id='20000101_000000')
                 sql(fixture.io.save_sql(record, rerun, fixture.io.validate(record, rerun)))
                 self.assertEqual(sql('SELECT count(DISTINCT benchmark_run_id) FROM testbed.metrics;'), '2')
+                self.assertEqual(sql('SELECT count(*) FROM testbed.metric_benchmark_runs;'), '2')
+                # Down restores the per-row audit record; Up collapses it again.
+                last = migrations[-1]
+                sql('BEGIN;\n' + last[1] + '\nCOMMIT;')
+                self.assertEqual(sql("SELECT count(*) FROM testbed.metrics WHERE ext_info ? 'candidates';"), '2')
+                sql('BEGIN;\n' + last[0] + '\nCOMMIT;')
+                self.assertEqual(sql('SELECT count(*) FROM testbed.metric_benchmark_runs;'), '2')
+                self.assertEqual(sql("SELECT count(*) FROM testbed.metrics WHERE ext_info ? 'candidates';"), '0')
             finally:
                 run(['pg_ctl', '-D', str(data), '-m', 'immediate', '-w', 'stop'])
 

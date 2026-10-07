@@ -207,7 +207,7 @@ class BenchmarkIOTests(unittest.TestCase):
                         'correctness_review', 'coverage', 'candidates', 'metrics')})
         rows = self.io.validate(self.record, payload)
         self.assertEqual(rows[0]['skill_version'], '1.0.0')
-        self.assertEqual(rows[0]['ext_info']['rules_sha256'], payload['rules_sha256'])
+        self.assertEqual(self.io.run_row(self.record, payload)['rules_sha256'], payload['rules_sha256'])
         with self.assertRaises(ValueError):
             self.io.prepare(self.record, 'test-model', '9.9.9')
 
@@ -228,9 +228,25 @@ class BenchmarkIOTests(unittest.TestCase):
 
     def test_payload_without_rules_hash_from_older_tooling_still_validates(self):
         del self.payload['rules_sha256']
-        rows = self.io.validate(self.record, self.payload)
-        self.assertEqual(rows[0]['ext_info']['rules_sha256'],
+        self.io.validate(self.record, self.payload)
+        self.assertEqual(self.io.run_row(self.record, self.payload)['rules_sha256'],
                          self.io.resolve_rules(self.payload['skill_version'])[1])
+
+    def test_audit_record_is_stored_once_per_run_not_per_row(self):
+        self.payload['candidates'].append({'candidate_id': 'c2', 'decision': 'duplicate',
+                                           'metric_ids': ['123_gold_1'], 'source_line_spans': ['2'],
+                                           'rule_id': 'D1', 'reason': 'Repeat of the pressure clause.'})
+        rows = self.io.validate(self.record, self.payload)
+        self.assertEqual(set(rows[0]['ext_info']), {'schema_version', 'source', 'evidence', 'candidate_ids'})
+        self.assertEqual(rows[0]['ext_info']['candidate_ids'], ['c1', 'c2'])
+        run = self.io.run_row(self.record, self.payload)
+        self.assertEqual(run['candidates'], self.payload['candidates'])
+        self.assertEqual(run['coverage'], self.payload['coverage'])
+        self.assertEqual(run['benchmark_run_id'], self.payload['benchmark_run_id'])
+        self.assertEqual(run['input_record_id'], self.record['id'])
+        sql = self.io.save_sql(self.record, self.payload, rows)
+        self.assertLess(sql.index('INSERT INTO testbed.metric_benchmark_runs'),
+                        sql.index('INSERT INTO testbed.metrics'))
 
     def test_rules_2_require_a_matching_rule_id_per_candidate(self):
         self.payload = self.pinned('2.0.0')

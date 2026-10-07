@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Validate independently authored metrics; save an immutable benchmark snapshot."""
+"""Validate independently authored metrics; save an immutable benchmark snapshot.
+
+A run is one row in testbed.metric_benchmark_runs (audit record: ledger, coverage, reviews)
+plus its metric rows in testbed.metrics, inserted in one transaction."""
 import argparse
 from datetime import datetime, timezone
 import hashlib
@@ -246,7 +249,6 @@ def validate(record, payload):
         covered.update(region_lines)
     require(covered == lines.keys(), 'Coverage does not account for every source line')
     rows, ids, identities = [], set(), set()
-    now = datetime.now(timezone.utc).isoformat()
     for metric in payload['metrics']:
         for field in TEXT_FIELDS:
             require(isinstance(metric.get(field), str), f'Missing/string field: {field}')
@@ -367,20 +369,14 @@ def validate(record, payload):
         if payload['language'].lower() != 'en':
             string_list(metric.get('metric_keywords_en', []), 'metric_keywords_en')
             row['metric_keywords_en'] = metric.get('metric_keywords_en', [])
-        metadata = record.get('doc_metadata') or {}
         row.update(input_record_id=record['id'], benchmark_run_id=payload['benchmark_run_id'],
                    source_filename=str(path), source_sha256=digest,
                    skill_name=payload['skill_name'], skill_version=payload['skill_version'],
                    model_name=payload['model_name'],
-                   ext_info={'schema_version': '2', 'source': 'independent-benchmark',
-                             'language': payload['language'], 'reviewed_at': now,
-                             'rules_sha256': payload_rules,
-                             'title': metadata.get('title') or record.get('title') or '',
-                             'doc_no': metadata.get('doc_no') or record.get('doc_no') or '',
-                             'evidence': evidence,
-                             'coverage': payload['coverage'], 'candidates': payload['candidates'],
-                             'completeness_review': payload['completeness_review'],
-                             'correctness_review': payload['correctness_review']})
+                   # Per-row data only; the run's audit record goes to testbed.metric_benchmark_runs
+                   # once (run_row). candidate_ids is filled after the ledger is checked.
+                   ext_info={'schema_version': '3', 'source': 'independent-benchmark',
+                             'evidence': evidence})
         notes = metric.get('annotation_notes', '')
         require(isinstance(notes, str), 'annotation_notes must be a string')
         if notes:
@@ -407,7 +403,24 @@ def validate(record, payload):
         if decision == 'accepted':
             linked.update(targets)
     require(linked == ids, 'Every metric needs an accepted candidate')
+    for row in rows:
+        row['ext_info']['candidate_ids'] = sorted(
+            c['candidate_id'] for c in payload['candidates'] if row['metric_id'] in c.get('metric_ids', []))
     return rows
+
+
+def run_row(record, payload):
+    """The run's testbed.metric_benchmark_runs row: its audit record, stored once per run.
+    Call after validate, which checks every field used here."""
+    metadata = record.get('doc_metadata') or {}
+    _, rules_sha256 = resolve_rules(payload['skill_version'])
+    return {key: payload[key] for key in ('skill_name', 'skill_version', 'model_name', 'benchmark_run_id',
+                                          'source_filename', 'source_sha256', 'language', 'coverage',
+                                          'candidates', 'completeness_review', 'correctness_review')} | {
+        'input_record_id': record['id'], 'rules_sha256': payload.get('rules_sha256', rules_sha256),
+        'title': metadata.get('title') or record.get('title') or '',
+        'doc_no': metadata.get('doc_no') or record.get('doc_no') or '',
+        'reviewed_at': datetime.now(timezone.utc).isoformat()}
 
 
 def sql_json(value):
@@ -425,6 +438,8 @@ def save_sql(record, payload, rows):
               'benchmark_run_id', 'source_filename', 'source_sha256', 'skill_name', 'skill_version', 'model_name',
               'ext_info']
     columns = ', '.join(fields)
+    run = run_row(record, payload)
+    run_columns = ', '.join(run)
     identity = {key: record.get(key) for key in ('result_filename', 'staging_filename', 'parser_name')}
     run_key = ' AND '.join(f"{key} = {sql_text(payload[key])}" for key in
                            ('skill_name', 'skill_version', 'model_name', 'benchmark_run_id'))
@@ -442,6 +457,8 @@ SELECT pg_advisory_xact_lock(hashtextextended({sql_text(run_key)}, 0));
 CREATE TEMP TABLE benchmark_run_key_unused (ok BOOLEAN NOT NULL CHECK (ok)) ON COMMIT DROP;
 INSERT INTO benchmark_run_key_unused SELECT NOT EXISTS (
  SELECT 1 FROM testbed.metrics WHERE {run_key});
+INSERT INTO testbed.metric_benchmark_runs ({run_columns})
+ SELECT {run_columns} FROM jsonb_populate_record(NULL::testbed.metric_benchmark_runs, {sql_json(run)});
 INSERT INTO testbed.metrics ({columns})
  SELECT {columns} FROM jsonb_populate_recordset(NULL::testbed.metrics, {sql_json(rows)});
 SELECT count(*) AS saved_metrics FROM testbed.metrics

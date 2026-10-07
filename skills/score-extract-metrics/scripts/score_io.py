@@ -129,11 +129,13 @@ def fetch_gold_runs(record_id):
 
 
 def fetch_gold_rows(record_id, run):
-    key = ' AND '.join(f"{k} = {bio.sql_text(run[k])}" for k in ('skill_version', 'model_name', 'benchmark_run_id'))
-    cols = ', '.join(METRIC_FIELDS)
-    return query_json(f'''SELECT COALESCE(json_agg(row_to_json(m) ORDER BY m.id), '[]') FROM (
- SELECT id, {cols}, ext_info->'candidates' AS candidates FROM testbed.metrics
- WHERE input_record_id = {record_id} AND skill_name = '{GOLD_SKILL}' AND {key}) m;''')
+    """Gold rows of one run; each carries the run's candidate ledger from testbed.metric_benchmark_runs."""
+    key = ' AND '.join(f"m.{k} = {bio.sql_text(run[k])}" for k in ('skill_version', 'model_name', 'benchmark_run_id'))
+    cols = ', '.join(f'm.{c}' for c in METRIC_FIELDS)
+    return query_json(f'''SELECT COALESCE(json_agg(row_to_json(g) ORDER BY g.id), '[]') FROM (
+ SELECT m.id, {cols}, r.candidates FROM testbed.metrics m
+ JOIN testbed.metric_benchmark_runs r USING (skill_name, skill_version, model_name, benchmark_run_id)
+ WHERE m.input_record_id = {record_id} AND m.skill_name = '{GOLD_SKILL}' AND {key}) g;''')
 
 
 def fetch_predictions(record_id):

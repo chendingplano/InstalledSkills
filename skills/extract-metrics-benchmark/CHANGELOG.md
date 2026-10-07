@@ -174,6 +174,18 @@ under 1.0.0, about 64 hold up under the review).
 
 ## Tooling changes
 
+### 2026-10-07 — run audit record stored once per run
+- `testbed.metrics.ext_info` used to copy the run's whole audit record (candidate ledger, coverage,
+  reviews; ~30 KB) into every row, about 94% of each row's `ext_info`. Migration `20261007000002`
+  adds `testbed.metric_benchmark_runs` (one row per run key, referenced by `testbed.metrics`), moved
+  the 10 saved runs there and cut per-row `ext_info` to schema `3`: `evidence`, `annotation_notes`,
+  `candidate_ids`. Table size 43 MB → 2.6 MB. The migration refuses to collapse a run whose rows
+  disagree; its Down restores the schema-2 rows.
+- `benchmark_io.py`: `run_row()` builds the run row; `save` inserts it before the metrics in the same
+  transaction. `score-extract-metrics` reads the ledger from the run table.
+- Migration `20261007000001` widens `testbed.metrics.value_class` to `metric-with-no-value`, which
+  rules 4.1.0+ need (without it their saves fail).
+
 ### 2026-10-07 — validation and scoring for rules 3.0.0
 - `validate` gates on rules ≥ 3.0.0: an accepted row may not have kind `inspection_requirement`,
   `delegated_requirement` or `observation`, nor `value_class = reference`, `external_reference` or
