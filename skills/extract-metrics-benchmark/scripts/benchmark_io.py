@@ -62,8 +62,8 @@ def statement_kind(metric):
     and server/api/doc-processing/metric_statement_kind.go; change all three together."""
     value_class = metric['value_class'].strip().lower()
     if value_class == NO_VALUE_CLASS:
-        # Gold-only class (rules 4.1.0+); the application never sees it, so the mirrors need no
-        # change: it is classified as the requirement + limit_absent row extract_metrics stores.
+        # Gold-only class (rules 4.1.0+), classified as the requirement + limit_absent row
+        # extract_metrics stores; the ChenWeb mirrors map it the same way.
         value_class = 'requirement'
     range_type = metric['value_range_type'].strip().lower()
     numeric = range_type in NUMERIC_RANGE_TYPES

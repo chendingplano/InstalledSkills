@@ -78,8 +78,8 @@ Tooling (`benchmark_io.py`), gated to rules ≥ 4.1.0: `metric-with-no-value` is
 must carry the typical-values marker; `value_class_en` must be "metric with no value".
 `statement_kind` maps the class to `requirement_value_open`, as for the extractor's requirement +
 `limit_absent` rows, so scoring still matches them. The ChenWeb mirrors (`metric-statement-kind.ts`,
-`metric_statement_kind.go`) are unchanged: kb.metrics never holds the class. ChenWeb pages that show
-gold rows will label 4.1.0 A4 rows `unclassified` until the TS mirror learns the class.
+`metric_statement_kind.go`) map it the same way since 2026-10-07, so gold pages no longer show these
+rows as `unclassified`.
 
 ### 4.0.0 — 2026-10-07
 
