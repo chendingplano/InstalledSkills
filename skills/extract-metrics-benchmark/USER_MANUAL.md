@@ -132,8 +132,9 @@ date.
 | 2.1.0 | `rules/2.1.0.md` | 2026-10-07 | Same choice of what counts as a metric as 2.0.0. Each gold metric now also says what it is to an expert: a requirement (with a number, with the value set elsewhere, inspection-only, or pointing to another standard), a metric value, a test setting or a definition. These are the same labels the ChenWeb pages show, so you can score requirements and metrics separately. It also fixes how a few things are written down (interpretation thresholds, conditions, measurement basis, "daily" schedules, standard numbers). |
 | 3.0.0 | `rules/3.0.0.md` | 2026-10-07 | A metric must be something you can **measure**. Requirements with nothing to measure are no longer metrics: "the bin shall have a lid" (an inspection requirement) and "shall comply with CJJ 52" (a requirement that points to another standard). This matches the automatic extraction since 2026-10-07, which no longer saves these. The answer key still lists them, as excluded requirements, so you can check that the extraction set them aside. For document 416 this leaves 35 of 2.1.0's 66 gold metrics. |
 | 3.1.0 | `rules/3.1.0.md` | 2026-10-07 | Same as 3.0.0, with one clarification. A rule that only says two parties must **agree** when or how often something is done ("agree the kitchen-waste collection time and frequency") is a duty, not a metric: there is nothing to measure. 3.0.0 runs counted it as a metric with the value left open. For document 416 this leaves 33 gold metrics. |
+| 4.0.0 | `rules/4.0.0.md` | 2026-10-07 | A rule that only says a quantity should be **sized to suit** something else ("size the composting room's chamber volume reasonably for the daily amount of waste") is a design requirement, not a metric: no number is given anywhere and nobody has to state one, so there is nothing to check. Requirements where the supplier must **state** a value ("the equipment shall state its energy consumption") or two parties must **agree** one still count. For document 416 this leaves 32 gold metrics. |
 
-**If you don't name a version, the newest one is used** (the highest version number; currently 3.1.0).
+**If you don't name a version, the newest one is used** (the highest version number; currently 4.0.0).
 Draft versions marked as pre-releases, such as `2.0.0-rc.1`, are used only when you name them. The
 assistant tells you which version it used.
 
@@ -142,7 +143,8 @@ Because 1.0.0, 1.1.0 and 1.2.0 use identical rules, running any of them gives th
 corrected rule set based on the review report. Version **2.1.0** keeps 2.0.0's decisions and adds the
 requirement/metric labels. Version **3.0.0** drops the requirements that have nothing to measure; use it
 to score the current automatic extraction. Version **3.1.0** also drops duties to agree when or how
-often an activity is done.
+often an activity is done. Version **4.0.0** also drops requirements that only say to size a quantity to
+suit something else; the automatic extraction still keeps those, so expect them as its false positives.
 
 If you ask for a version that isn't in the list, the assistant will refuse and show you the versions
 that exist.
@@ -205,6 +207,7 @@ format is <yyyymmdd-hhmm>-metric-extraction-analysis-report.md.
 
 | Version | Timestamp | Author | Reason | Summary |
 |---|---|---|---|---|
+| 1.7 | 2026-10-07T10:15:00-05:00 | Not specified (drafted by Claude Code) | Rules version 4.0.0 released | Added 4.0.0 to Available versions; it is now the default. |
 | 1.6 | 2026-10-07T09:20:00-05:00 | Not specified (drafted by Claude Code) | Rules version 3.1.0 released | Added 3.1.0 to Available versions; it is now the default. |
 | 1.5 | 2026-10-07T09:00:00-05:00 | Not specified (drafted by Claude Code) | Rules version 3.0.0 released | Added 3.0.0 to Available versions; it is now the default. Added a limit: score the current extraction with 3.0.0 or later. |
 | 1.4 | 2026-10-07T05:41:52-05:00 | Codex | Clarify document invocation and model provenance | A document invocation includes saving and read-back; the invoking assistant resolves its own model identity without asking the user. Annotation rules are unchanged. |

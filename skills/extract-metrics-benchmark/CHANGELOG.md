@@ -19,9 +19,33 @@ Two kinds of change are tracked separately:
 | 2.1.0 | `rules/2.1.0.md` | Statement kind per row (ADR 2026100603) and representation fixes from the 2.0.0 audit of record 416. See below. |
 | 3.0.0 | `rules/3.0.0.md` | Requirements with nothing to measure are not metrics, matching `extract_metrics` since 2026-10-07. See below. |
 | 3.1.0 | `rules/3.1.0.md` | A4 never supplies the object: a duty to agree an activity's time or frequency is X2. See below. |
+| 4.0.0 | `rules/4.0.0.md` | A quantity to be set or sized according to another factor, or by design, is a requirement (X17), not a metric. See below. |
 
-Default when no version is named: the newest released version (currently 3.1.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
+Default when no version is named: the newest released version (currently 4.0.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
 because rows were already saved under those labels.
+
+### 4.0.0 — 2026-10-07
+
+Major: changes which assertions are metrics. Asked for by the user after reviewing `416_gold_6` of
+run `20261007_093654` (堆肥设施(阳光房)应根据垃圾日处理量合理设置单室体积): a domain expert reads it as a
+design requirement, not a metric. It names a quantity, but no value exists anywhere and nobody must
+state one, so there is nothing to check a measurement against. 3.x accepted it as A4, using it as
+A4's own example.
+
+- **X17** (§2.3, new): sizing duty. A quantity to be set, sized, chosen or matched according to
+  another factor (throughput, population, demand, site), or by design, with no value, relation,
+  formula or table and no party obliged to declare or agree a value.
+- **A4** (§2.2): keeps only values a party must fix and record: declared by a supplier or
+  manufacturer, or agreed between named parties for a quantity of an object.
+- **Gate** (§2.1 (c)): the stand-in no longer lists "determined by another factor".
+- **Audit** (§4): every A4 row names who must declare or agree the value; equivalent sizing clauses
+  all get X17.
+- `validate` is unchanged apart from accepting X17 (rule IDs are read from the rules file); whether
+  a party must state the value is a reviewer check. Test added for X17 being valid only from 4.0.0.
+- Record 416: `416_gold_6` (单室体积) of run `20261007_093654` becomes X17; 32 rows remain. 比能耗 and
+  发酵周期 (the equipment must state them) stay A4.
+- Extractor gap: enrich prompt v8 still keeps "determined by design" values as `limit_absent`, so
+  X17 clauses score as `extract_metrics` false positives until the prompt follows.
 
 ### 3.1.0 — 2026-10-07
 

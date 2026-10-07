@@ -41,6 +41,12 @@
       "sha256": "f82b0e31d43d04ad3f4f4918029cd3715e1e3986e6b38528ae41b819a91be634",
       "released": "2026-10-07",
       "notes": "Clarification from the 416 3.0.0 audit (report 20261007-0854 §3.1): A4 supplies only the value, never the object; a duty to agree an activity's time or frequency is X2; an activity's time slot is not a measurable property."
+    },
+    "4.0.0": {
+      "rules": "4.0.0.md",
+      "sha256": "82e5b8a2aa032e0650b9738c0f60d7bc2f234c7646d9dff0e7be2d179773ee34",
+      "released": "2026-10-07",
+      "notes": "A duty to set or size a quantity according to another factor, or by design, with no value and no party obliged to declare or agree one, is X17 (sizing duty), not A4: a domain expert reads it as a design requirement. A4 keeps declared and agreed values."
     }
   }
 }

@@ -335,7 +335,7 @@ class BenchmarkIOTests(unittest.TestCase):
             self.io.validate(self.record, self.payload)
 
     def test_rules_3_retire_a2_a3_as_x15_x16(self):
-        for version in ('3.0.0', '3.1.0'):
+        for version in ('3.0.0', '3.1.0', '4.0.0'):
             with self.subTest(version=version):
                 self.assertTrue({'X15', 'X16'} <= self.io.rule_ids(version))
                 self.assertFalse({'A2', 'A3'} & self.io.rule_ids(version))
@@ -349,6 +349,19 @@ class BenchmarkIOTests(unittest.TestCase):
                     payload['candidates'][0]['rule_id'] = rule
                     with self.subTest(rule=rule), self.assertRaises(ValueError):
                         self.io.validate(self.record, payload)
+
+    def test_rules_4_sizing_duty_is_x17(self):
+        self.assertIn('X17', self.io.rule_ids('4.0.0'))
+        self.assertNotIn('X17', self.io.rule_ids('3.1.0'))
+        base = self.pinned('4.0.0')
+        base['candidates'].append({'candidate_id': 'c2', 'decision': 'excluded', 'metric_ids': [],
+                                   'source_line_spans': ['2'], 'rule_id': 'X17',
+                                   'reason': 'Tank volume sized for daily throughput; no value.'})
+        self.io.validate(self.record, base)
+        old = self.pinned('3.1.0')
+        old['candidates'].append(dict(base['candidates'][-1]))
+        with self.assertRaises(ValueError):
+            self.io.validate(self.record, old)
 
     def test_rules_3_refuse_rows_with_nothing_to_measure(self):
         clause = 'Backup facilities shall comply with CJJ 27.'
