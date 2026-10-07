@@ -24,10 +24,11 @@ SKILL.md allows as a stand-in once its inspection and delegated rows are dropped
 
 ## 1. Summary
 
-- **The run is correct and can be used as the record-416 benchmark for scoring `extract_metrics`
-  (candidates v11 / enrich v8).** All 35 saved rows pass the gate, have the right rule, and match
-  the source in value, comparator, unit and table row. I found no row that should be removed and
-  no gate-passing assertion that is missing.
+- **The run can be used as the record-416 benchmark for scoring `extract_metrics` (candidates v11 /
+  enrich v8), with two rows marked disputed.** 33 of the 35 saved rows pass the gate, have the right
+  rule, and match the source in value, comparator, unit and table row. `416_gold_3` (餐厨垃圾收运时间)
+  should be excluded, and `416_gold_4` (餐厨垃圾收运频次) fails the gate for the same reason (§3.1).
+  I found no gate-passing assertion that is missing.
 - **It fixes every problem raised in the two 2.0.0 reports.** 主体工艺 is X13 and 种名 is X10. The
   GI cut-offs are `definition` rows tagged `interpretation_bound`. Table 1 suitability text is no
   longer a `condition`. Measurement basis (以烘干基计, 鲜样) is in `metric_name`. "每日" is encoded
@@ -61,17 +62,50 @@ SKILL.md allows as a stand-in once its inspection and delegated rows are dropped
 | `metric_definition` | 3 |
 
 `value_range_type`: exact 12, upper_bound 8, lower_bound 7, limit_absent 5, range 2, qualitative 1.
-The only `qualitative` row is the A5 formula, as §3.1 of the rules requires. The count matches the
-document's structure exactly, as the run's own consistency review argues: 1 + 2 + 2 + 3 + 1 + 3 +
-5 + 15 + 1 + 2 = 35.
+The only `qualitative` row is the A5 formula, as §3.1 of the rules requires. The run's consistency review
+derives 35 from the document's structure (1 + 2 + 2 + 3 + 1 + 3 + 5 + 15 + 1 + 2). Without the
+two agreement rows (§3.1) the expected count is 33.
 
 ## 3. Saved rows: findings
 
-No row needs to change its rule, value, comparator, unit or table row. The points below are
-wording or representation details. None of them makes a row wrong. The scorer should normalize
-the ones marked *(scoring)*.
+Two rows fail the gate (§3.1). The other points are wording or representation details that do not
+make a row wrong. The scorer should normalize the ones marked *(scoring)*.
 
-### 3.1 Table 1 rows say "机器成肥设备" where the source says "机械成肥设备"
+### 3.1 `416_gold_3` / `416_gold_4`: food-waste collection time and frequency by agreement, accepted as A4, should be X2
+
+*Added after review on 2026-10-07. The first version of this report confirmed these rows in §5.
+That was wrong.*
+
+Line 101 reads "收运单位应与集中供餐单位约定餐厨垃圾收运的时间和频次". The run turned this into two
+A4 `limit_absent` rows, with the collection activity as the subject. The clause does not set a value
+for anything. It tells the collection unit to make an arrangement with the catering units. What an
+inspector checks is whether that agreement exists. Nothing is measured and no number passes or
+fails, so this is a requirement and not a metric. The rule is X2, an organizational duty.
+
+The rules exclude it in two places:
+
+- **Gate (a).** "An activity counts as the object only when the requirement is a number about it."
+  These rows have an activity as the subject (集中供餐单位餐厨垃圾收运) and no number. A4 can stand in
+  for the value (c). It cannot supply the object (a). So both rows fail the gate before A4 is
+  considered. Compare the A4 rows that remain: 比能耗 and 发酵周期 are properties of a physical
+  object (the equipment), and 单室体积 is a property of the sun house.
+- **Gate (b), for the time row in particular.** 收运的时间 is a time slot for when collection
+  happens. It is not a property of an object measured on a scale.
+
+The frequency row is closer, because frequency is a quantity, and A4 lists "set by agreement" as a
+case. But that phrase describes the value of an object's property. It does not turn an agreement
+duty about an activity into a metric. The daily-collection rows on the same line (`416_gold_2`, `416_gold_5`) stay, because they
+state a number about the activity (1 次/日). That is exactly the exception gate (a) allows.
+
+The gpt-6.1-sol 2.1.0 run and the 2.0.0 run accepted the same two rows, and the 20261006-1311
+report confirmed them. Every annotator, including this review, has read A4's "set by agreement"
+wording as covering this clause. That points to a gap in the rules' wording more than an annotator error (§7).
+
+*Effect:* the clean core set is 33 rows. Neither row belongs in the X15/X16 answer key either: an
+agreement duty is not an inspection or delegated requirement. An extractor that emits these rows
+should count as a false positive under the corrected reading.
+
+### 3.2 Table 1 rows say "机器成肥设备" where the source says "机械成肥设备"
 
 `416_gold_6` and `416_gold_7` use the mode name (机器成肥) as the subject. The cell itself says
 "采用机械成肥设备 … 设备应明确…". `metric_desc` uses 机械, but `metric_subject` and
@@ -79,21 +113,21 @@ the ones marked *(scoring)*.
 also a paraphrase rather than source wording. Evidence is exact, so this is cosmetic. Subject
 matching should treat 机器成肥设备 and 机械成肥设备 as the same object. *(scoring)*
 
-### 3.2 Units: per-object denominators
+### 3.3 Units: per-object denominators
 
 `416_gold_1` stores the container count in 个 and `416_gold_28` the seed count in 粒. The gpt 2.1.0
 run used 个/户 and 粒/皿 for the same rows. Both are faithful, because the per-household and
 per-dish scope is in the subject. Treat a bare count unit and its per-object form as equal.
 *(scoring)*
 
-### 3.3 `measurement_frequency` on `416_gold_25`
+### 3.4 `measurement_frequency` on `416_gold_25`
 
 "每次测定，做蒸馏水空白对照3个" puts 每次测定 in `measurement_frequency`. That phrase scopes the
 count (three blanks per determination); it is not how often anything is measured. The gpt run
 put it in `condition`. Neither is clearly wrong under the rules. The scorer should not penalize
 either placement. *(scoring)*
 
-### 3.4 Conditions are now minimal and correct
+### 3.5 Conditions are now minimal and correct
 
 There are five non-empty conditions: 室温下 (extraction time), 黑暗 (incubation temperature and
 time), and 如浸出液不能马上分析 (storage temperature and time). Each is source text and each
@@ -101,7 +135,7 @@ limits the row it is on. This is cleaner than the gpt 2.1.0 run, which also atta
 shaker frequency and amplitude and repeated the storage temperature inside the storage-time
 condition. Where the two runs differ on a condition, this run is the better answer.
 
-### 3.5 Smaller points
+### 3.6 Smaller points
 
 - `416_gold_20` stores the ratio as `1：10` with a full-width colon and `value_data_type = number`.
   Normalize the colon before matching.
@@ -174,7 +208,6 @@ These do not change any row or any X15/X16 count.
 | Table 1 适用范围 → X5 (4 candidates), no conditions | 121 | §3 Conditions; resolves 2.0.0 report §4.1 |
 | Measurement basis in `metric_name` | 131, 134, 158 | §3 Conditions; resolves 2.0.0 report §4.2 |
 | 每日定时收运 → exact 1 次/日, wording in `measurement_frequency` | 101, 104 | §3 Schedules; resolves 2.0.0 report §4.3 |
-| Food-waste collection time and frequency are two A4 rows | 101 | "约定" is A4's agreement case; time and frequency are distinct quantities |
 | Table 2 only for machine compost; Table 3, GI apply to both modes | 128 | Matches 9.3.6 exactly; one row per Table 3 row with the joint subject |
 | Three 9.3.6 table pointers are D1 | 128 | Link to the Table 2 and Table 3 rows |
 | 500 ml bottle, filter paper, seed species are X12 | 158, 159 | Apparatus and material identity |
@@ -194,23 +227,25 @@ Run `20261007_054115` has 66 rows. Dropping its 14 `kind:inspection_requirement`
 `kind:delegated_requirement` rows leaves 35, the stand-in that SKILL.md describes.
 
 - **Accepted rows: 35 = 35, one to one.** The two runs agree on every subject, property, value,
-  comparator, unit, table row and `kind:` tag. The only differences are in units (§3.2), condition
-  placement (§3.3, §3.4) and the GI cut-off line spans (§3.5).
+  comparator, unit, table row and `kind:` tag. The only differences are in units (§3.3), condition
+  placement (§3.4, §3.5) and the GI cut-off line spans (§3.6). Both runs also accept
+  `416_gold_3` and `416_gold_4`, which should be excluded (§3.1).
 - **Pure requirements: 31 vs 33.** The X16 sets are identical (§4.2). The X15 sets differ only by
   the two 8.1.6 candidates (§4.1).
 
-Two independent annotators, using different rule versions, reached the same 35 rows. That is strong
-evidence that the 3.0.0 row set for this document is stable.
+Two independent annotators, using different rule versions, reached the same 35 rows. Agreement
+shows that both read the rules the same way. It does not show that the reading is right: both
+accepted the agreement rows of §3.1, so the shared reading of A4 is the problem there.
 
 ## 7. Impact on scoring and recommended actions
 
 1. Use run `20261007_083500` as the record-416 benchmark for `extract_metrics` (candidates v11 /
-   enrich v8), and cite the run ID with every score. All 35 rows are in the clean core set; none
-   needs to be marked disputed.
+   enrich v8), and cite the run ID with every score. Report scores with and without
+   `416_gold_3` and `416_gold_4` (§3.1). The clean core set is 33 rows.
 2. Score the `exclude_pure_requirements` log against 33 X15/X16 candidates, and report the
    alternative with c47 (and optionally c48) removed (§4.1).
-3. Normalize when matching: 机器成肥 and 机械成肥 equipment (§3.1), bare and per-object count units
-   (§3.2), the placement of 每次测定 (§3.3), full-width colons in ratios (§3.5), and the
+3. Normalize when matching: 机器成肥 and 机械成肥 equipment (§3.2), bare and per-object count units
+   (§3.3), the placement of 每次测定 (§3.4), full-width colons in ratios (§3.6), and the
    `NY884`/`NY 884` spacing.
 4. Report recall with and without the 15 `test_parameter` rows, because production extraction
    may not target test-method settings.
@@ -218,6 +253,9 @@ evidence that the 3.0.0 row set for this document is stable.
    - Say whether X15 covers a process or management regime ("过程应密闭化管理"). If not, name X2 for
      it, and say whether "应密闭清运" is X1 or X15.
    - Add a pointer to a whole table that is only partly metrics (Table 1) to the D1/X list of §2.4.
+   - State that an agreement duty about an activity ("约定收运的时间和频次") is X2, not A4. A4's
+     "set by agreement" applies only to a property of an object; gate (a) still needs an object.
+     Add this clause as an X2 example.
    - Say where per-occurrence scope such as "每次测定" belongs: `condition` or
      `measurement_frequency`.
 
