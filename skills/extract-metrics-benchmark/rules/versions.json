@@ -59,6 +59,12 @@
       "sha256": "b8b1a86ccc87a05ab7b8fcce733ab590b82ce6381f4e0ef60a571df5ee14f312",
       "released": "2026-10-07",
       "notes": "Sizing duties (4.x X17) are metrics with no value: A4 now covers values left open to be declared, agreed, or set/sized by another factor or by design. X17 retired."
+    },
+    "5.1.0": {
+      "rules": "5.1.0.md",
+      "sha256": "f84573119715104c3fe33ad0756505d2ac256d0f2854913f63afad1b5d0d6fb8",
+      "released": "2026-10-07",
+      "notes": "Typical values of a metric with no value must be a numeric range with unit and what it depends on; 'no comparable typical value' only with a reason why no range can exist. Same metrics as 5.0.0."
     }
   }
 }

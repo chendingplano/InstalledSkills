@@ -379,6 +379,34 @@ class BenchmarkIOTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.io.validate(self.record, old)
 
+    def test_rules_5_1_typical_values_need_a_range(self):
+        clause = 'The pump shall state its specific energy consumption.'
+        self.source.write_text(
+            '1\t1\theading\tArial\t12\t[0,0,100,20]\tPump requirements\n'
+            f'2\t1\tparagraph\tArial\t10\t[0,20,100,40]\t{clause}\n', encoding='utf-8')
+        marker = 'Typical values (domain knowledge, not stated by this document):'
+
+        def payload(version, typical):
+            p = self.pinned(version)
+            p['metrics'][0].update(
+                metric_name='Specific energy consumption', value_range_type='limit_absent',
+                value_class='metric-with-no-value', metric_value='', metric_unit='', value_data_type='',
+                is_explicit_metric=False, threshold_or_target=clause,
+                metric_desc=f'Electrical energy per m3 pumped, in kWh/m3. {marker} {typical}',
+                reasoning_tags=['kind:requirement_value_open'], evidence=[{'line': 2, 'quote': clause}])
+            p['candidates'][0]['rule_id'] = 'A4'
+            return p
+
+        vague = 'no reliable typical value; depends on pump type.'
+        self.io.validate(self.record, payload('5.0.0', vague))       # 5.0.0 allowed it
+        with self.assertRaises(ValueError):
+            self.io.validate(self.record, payload('5.1.0', vague))
+        for ok in ('about 0.1-0.5 kWh/m3, depending on head and pump size.',
+                   'No comparable typical value (reason: set per contract across orders of magnitude).'):
+            self.io.validate(self.record, payload('5.1.0', ok))
+        with self.assertRaises(ValueError):
+            self.io.validate(self.record, payload('5.1.0', 'No comparable typical value (reason: )'))
+
     def test_rules_5_retire_x17_sizing_duties_are_a4(self):
         self.assertIn('X17', self.io.rule_ids('4.1.0'))
         self.assertNotIn('X17', self.io.rule_ids('5.0.0'))

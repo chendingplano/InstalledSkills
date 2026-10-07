@@ -22,9 +22,25 @@ Two kinds of change are tracked separately:
 | 4.0.0 | `rules/4.0.0.md` | A quantity to be set or sized according to another factor, or by design, is a requirement (X17), not a metric. See below. |
 | 4.1.0 | `rules/4.1.0.md` | A4 rows are metrics with no value (`value_class = metric-with-no-value`) with typical values in `metric_desc`. See below. |
 | 5.0.0 | `rules/5.0.0.md` | Sizing duties (X17) are metrics with no value too: A4 covers values to be declared, agreed, or set/sized by another factor. X17 retired. See below. |
+| 5.1.0 | `rules/5.1.0.md` | Typical values of a metric with no value must be a numeric range with unit; "no typical value" only with a reason. See below. |
 
-Default when no version is named: the newest released version (currently 5.0.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
+Default when no version is named: the newest released version (currently 5.1.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
 because rows were already saved under those labels.
+
+### 5.1.0 — 2026-10-07
+
+Minor: the same assertions are metrics as in 5.0.0; only `metric_desc` of A4 rows changes. In 5.0.0
+run `20261007_131153` (record 416, gpt-6.1-sol) all three metrics with no value said
+"无可靠通用典型值", so none gave the typical values the user asked for.
+
+- **§3.2:** typical values are a numeric range with unit plus what it depends on; order of magnitude
+  is enough. Uncertainty or dependence on type/scale/feedstock is never a reason to omit it. Only when
+  no range can exist for that kind of object: "无可比典型值（原因：…）" / "No comparable typical value
+  (reason: …)".
+- **Audit (§4)** checks the same.
+- Tooling: `validate` (rules ≥ 5.1.0) requires a digit after the typical-values marker, or the escape
+  phrase with a non-empty reason, in `metric_desc` and `metric_desc_en`. Whether the range is
+  plausible stays a reviewer check.
 
 ### 5.0.0 — 2026-10-07
 

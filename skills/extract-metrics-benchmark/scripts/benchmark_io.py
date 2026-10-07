@@ -30,6 +30,14 @@ NO_VALUE_CLASS = 'metric-with-no-value'
 NO_VALUE_CLASS_EN = 'metric with no value'
 TYPICAL_VALUE_MARKERS = ('典型值（领域经验，非本文件规定）：',
                          'Typical values (domain knowledge, not stated by this document):')
+# Rules 5.1.0+: the typical values are a numeric range, or this phrase followed by a reason.
+NO_TYPICAL_VALUE = re.compile(r'(无可比典型值（原因：|No comparable typical value \(reason:)\s*[^\s）)]')
+
+
+def typical_values_given(desc):
+    """Rules 5.1.0+: the text after the typical-values marker holds a number, or a reasoned escape."""
+    tail = ''.join(desc.split(marker, 1)[1] for marker in TYPICAL_VALUE_MARKERS if marker in desc)
+    return bool(re.search(r'[0-9]', tail) or NO_TYPICAL_VALUE.search(tail))
 LOCATIONS = {'sentence', 'bullet', 'table_row', 'table_cell', 'heading_context', 'mixed'}
 # benchmark_run_id: local time the run was prepared. A run is identified by
 # (skill_name, skill_version, model_name, benchmark_run_id) and is never overwritten.
@@ -235,6 +243,8 @@ def validate(record, payload):
     gated_3 = version_key(payload['skill_version'])[0] >= 3
     # Checks introduced with rules 4.1.0: A4 rows are metrics with no value, with typical values.
     gated_4_1 = version_key(payload['skill_version'])[:3] >= (4, 1, 0)
+    # Checks introduced with rules 5.1.0: typical values are a numeric range (or a reasoned escape).
+    gated_5_1 = version_key(payload['skill_version'])[:3] >= (5, 1, 0)
     rules = rule_ids(payload['skill_version']) if gated else set()
     require(isinstance(payload.get('model_name'), str) and payload['model_name'].strip(),
             'Missing model_name')
@@ -273,6 +283,9 @@ def validate(record, payload):
                 require(all(any(m in d for m in TYPICAL_VALUE_MARKERS) for d in descs),
                         f'{metric["metric_id"]}: metric_desc{"" if english else " and metric_desc_en"} '
                         'must explain the metric and give marked typical values (rules §3.2)')
+                require(not gated_5_1 or all(typical_values_given(d) for d in descs),
+                        f'{metric["metric_id"]}: typical values must be a numeric range with unit, or '
+                        '"无可比典型值（原因：…）" / "No comparable typical value (reason: …)" (rules §3.2)')
                 require(english or metric.get('value_class_en') == NO_VALUE_CLASS_EN,
                         f'{metric["metric_id"]}: value_class_en must be {NO_VALUE_CLASS_EN!r}')
         confidence = metric.get('confidence')
