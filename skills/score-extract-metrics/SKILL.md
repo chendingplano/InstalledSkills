@@ -1,6 +1,7 @@
 ---
 name: score-extract-metrics
 description: Use when asked to score, grade, evaluate or measure the quality of the metrics that extract_metrics produced for a document (kb.inputs.id), against that document's gold metrics / benchmark / ground truth in testbed.metrics.
+disable-model-invocation: true
 ---
 
 # Score extract_metrics

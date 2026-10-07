@@ -133,8 +133,11 @@ date.
 | 3.0.0 | `rules/3.0.0.md` | 2026-10-07 | A metric must be something you can **measure**. Requirements with nothing to measure are no longer metrics: "the bin shall have a lid" (an inspection requirement) and "shall comply with CJJ 52" (a requirement that points to another standard). This matches the automatic extraction since 2026-10-07, which no longer saves these. The answer key still lists them, as excluded requirements, so you can check that the extraction set them aside. For document 416 this leaves 35 of 2.1.0's 66 gold metrics. |
 | 3.1.0 | `rules/3.1.0.md` | 2026-10-07 | Same as 3.0.0, with one clarification. A rule that only says two parties must **agree** when or how often something is done ("agree the kitchen-waste collection time and frequency") is a duty, not a metric: there is nothing to measure. 3.0.0 runs counted it as a metric with the value left open. For document 416 this leaves 33 gold metrics. |
 | 4.0.0 | `rules/4.0.0.md` | 2026-10-07 | A rule that only says a quantity should be **sized to suit** something else ("size the composting room's chamber volume reasonably for the daily amount of waste") is a design requirement, not a metric: no number is given anywhere and nobody has to state one, so there is nothing to check. Requirements where the supplier must **state** a value ("the equipment shall state its energy consumption") or two parties must **agree** one still count. For document 416 this leaves 32 gold metrics. |
+| 4.1.0 | `rules/4.1.0.md` | 2026-10-07 | Same choice of metrics as 4.0.0. A metric the document names but gives no value for ("the equipment shall state its specific energy consumption") is now labelled a **metric with no value** (`value_class = metric-with-no-value`) instead of a requirement, and its description explains what the metric is and gives its typical values from domain knowledge, marked as not coming from the document. For document 416 that is 比能耗 and 发酵周期. |
+| 5.0.0 | `rules/5.0.0.md` | 2026-10-07 | Consistent with 4.1.0: a rule that only says a quantity should be **sized to suit** something else ("size the composting room's chamber volume for the daily amount of waste") also names a real metric without a value, so it counts again, as a metric with no value with its typical values. 4.0.0 had dropped it as a design requirement. For document 416 this gives 33 gold metrics. |
+| 5.1.0 | `rules/5.1.0.md` | 2026-10-07 | Same metrics as 5.0.0. The description of a metric with no value must now give its typical values as a rough number range with a unit (for example "about 30–80 kWh/t, depending on the machine"), not "no reliable typical value". Saying there is no typical value is allowed only with a reason why no range can exist. |
 
-**If you don't name a version, the newest one is used** (the highest version number; currently 4.0.0).
+**If you don't name a version, the newest one is used** (the highest version number; currently 5.1.0).
 Draft versions marked as pre-releases, such as `2.0.0-rc.1`, are used only when you name them. The
 assistant tells you which version it used.
 
@@ -144,7 +147,10 @@ corrected rule set based on the review report. Version **2.1.0** keeps 2.0.0's d
 requirement/metric labels. Version **3.0.0** drops the requirements that have nothing to measure; use it
 to score the current automatic extraction. Version **3.1.0** also drops duties to agree when or how
 often an activity is done. Version **4.0.0** also drops requirements that only say to size a quantity to
-suit something else; the automatic extraction still keeps those, so expect them as its false positives.
+suit something else; the automatic extraction still keeps those, so expect them as its false positives. Version **4.1.0** counts the same metrics as 4.0.0 but labels
+the ones the document names without a value as metrics with no value, and describes each with its typical values. Version **5.0.0** counts the sized-to-suit quantities again, as
+metrics with no value, so the automatic extraction's matching rows are no longer false positives. Version **5.1.0** requires real
+typical-value ranges in those metrics' descriptions.
 
 If you ask for a version that isn't in the list, the assistant will refuse and show you the versions
 that exist.
@@ -172,10 +178,16 @@ skill's directory. Report file name format: <yyyymmdd-hhmm>-metric-extraction-an
 
 ## 7. Analyze Extraction
 ```text
-Review the the metrics extracted by 'extract-metrics-benchmark' skill, version <the-version>
-for the document <doc-id> by the model <model-name>. Generate an analysis report and save the report 
+From a domain expert stand point of view, review the the metrics extracted by 
+'extract-metrics-benchmark' skill, version <the-version> for the document 
+<doc-id> by the model <model-name>. Generate an analysis report and save the report 
 in the sub-directory 'analysis-reports' of the skill's directory. Report file name
 format is <yyyymmdd-hhmm>-metric-extraction-analysis-report.md.
+
+IMPORTANT: The purpose of this review is to review the skill, whether
+it extracts the gold metrics correctly, accurately and completely.
+Thus do not judge the quality of the gold metrics based on the rules and 
+instructions from this skill. Judge it as a human domain expert.
 ```
 
 ## 8. Limits
@@ -207,6 +219,9 @@ format is <yyyymmdd-hhmm>-metric-extraction-analysis-report.md.
 
 | Version | Timestamp | Author | Reason | Summary |
 |---|---|---|---|---|
+| 1.10 | 2026-10-07T13:45:00-05:00 | Not specified (drafted by Claude Code) | Rules version 5.1.0 released | Added 5.1.0 to Available versions; it is now the default. |
+| 1.9 | 2026-10-07T13:30:00-05:00 | Not specified (drafted by Claude Code) | Rules version 5.0.0 released | Added 5.0.0 to Available versions; it is now the default. |
+| 1.8 | 2026-10-07T13:00:00-05:00 | Not specified (drafted by Claude Code) | Rules version 4.1.0 released | Added 4.1.0 to Available versions; it is now the default. |
 | 1.7 | 2026-10-07T10:15:00-05:00 | Not specified (drafted by Claude Code) | Rules version 4.0.0 released | Added 4.0.0 to Available versions; it is now the default. |
 | 1.6 | 2026-10-07T09:20:00-05:00 | Not specified (drafted by Claude Code) | Rules version 3.1.0 released | Added 3.1.0 to Available versions; it is now the default. |
 | 1.5 | 2026-10-07T09:00:00-05:00 | Not specified (drafted by Claude Code) | Rules version 3.0.0 released | Added 3.0.0 to Available versions; it is now the default. Added a limit: score the current extraction with 3.0.0 or later. |
