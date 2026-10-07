@@ -82,6 +82,8 @@ The skill is installed for Codex as well. Mention it with a `$` sign:
 `Use $extract-metrics-benchmark to extract and audit metrics for kb.inputs.id 416, version <version> 
 and save the benchmark to testbed.metrics.`
 
+Both requests run extraction, audit, validation, saving to `testbed.metrics`, and read-back verification. You do not need to add “save” or confirm saving separately. The recorded model is the assistant invoking the skill; it obtains its identity from the active runtime/session without asking you. Say “draft only” or “do not save” if you want local artifacts only.
+
 ### 4.3 Other coding assistants
 
 Any assistant that can read files and run commands in this workspace can follow the skill. Point it to
@@ -196,6 +198,7 @@ format is <yyyymmdd-hhmm>-metric-extraction-analysis-report.md.
 
 | Version | Timestamp | Author | Reason | Summary |
 |---|---|---|---|---|
+| 1.4 | 2026-10-07T05:41:52-05:00 | Codex | Clarify document invocation and model provenance | A document invocation includes saving and read-back; the invoking assistant resolves its own model identity without asking the user. Annotation rules are unchanged. |
 | 1.3 | 2026-10-07T05:30:00-05:00 | Not specified (drafted by Claude Code) | Rules version 2.1.0 released | Added 2.1.0 to Available versions; it is now the default. Explained the requirement/metric labels and added a limit noting that only 2.1.0 runs carry them. |
 | 1.2 | 2026-10-06T10:30:00-05:00 | Not specified (drafted by Claude Code) | Rules version 2.0.0 released | Added 2.0.0 to Available versions; it is now the default. Limits now say to re-run with 2.0.0. |
 | 1.1 | 2026-10-06T09:15:00-05:00 | Not specified (drafted by Claude Code) | Gold Metrics page gained version and model filters | "Where to see results" explains the Skill version and Model name pull-downs and that the document list shows only documents with gold metrics; the limit about not showing version or model is replaced. Run IDs are now date-times. |

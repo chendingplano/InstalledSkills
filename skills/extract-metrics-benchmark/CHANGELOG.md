@@ -68,6 +68,11 @@ under 1.0.0, about 64 hold up under the review).
 
 ## Tooling changes
 
+### 2026-10-07 — document invocation completes persistence
+- Invoking the skill for a document authorizes extraction, audit, validation, save to `testbed.metrics`, and read-back; only an explicit draft-only/no-save request omits persistence.
+- `model_name` comes from the invoking model’s runtime or active-session metadata, not user input or project extraction configuration. When only a runtime label is exposed, record it with a provenance note rather than blocking or inventing an exact ID.
+- Updated the shared procedure, benchmark contract and user manual. Released annotation rules, hashes, storage schema and validation behavior are unchanged.
+
 ### 2026-10-07 — validation for rules 2.1.0
 - `validate` gates new checks on rules ≥ 2.1.0: exactly one `kind:` tag matching the row's shape
   (`statement_kind`, a copy of the ChenWeb classifier), `reference` only with `external_reference`,

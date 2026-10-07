@@ -18,8 +18,10 @@ SQL
 python3 .agents/skills/extract-metrics-benchmark/scripts/benchmark_io.py prepare \
   --record /tmp/metrics-123-record.json --output /tmp/metrics-123-benchmark.json \
   --skill-version <released version; omit for the newest> \
-  --model-name <exact ID of the model running this skill> > /tmp/metrics-123-source.json
+  --model-name <invoking model identity resolved from the active runtime/session> > /tmp/metrics-123-source.json
 ```
+
+A document invocation includes saving and read-back unless the user explicitly requests draft-only/no-save. Resolve `model_name` from the invoking model’s runtime or active-session metadata as described in SKILL.md; do not ask the user to supply it. Prefer the exact model ID; if only a runtime label is exposed, record that label and explain it in `annotation_notes`.
 
 Use fresh artifact paths per invocation to preserve existing audits. `prepare` refuses to overwrite its payload. Its stdout includes all validated source records; read that file in bounded portions to avoid truncation. Empty query results mean an unknown ID. `DATA_HOME_DIR` is required for relative result paths. The parser tolerates blank lines/CRLF, validates seven TAB fields and rejects duplicate/non-increasing IDs. Gaps remain visible rather than silently renumbered.
 
