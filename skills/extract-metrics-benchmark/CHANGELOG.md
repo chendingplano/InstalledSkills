@@ -20,9 +20,32 @@ Two kinds of change are tracked separately:
 | 3.0.0 | `rules/3.0.0.md` | Requirements with nothing to measure are not metrics, matching `extract_metrics` since 2026-10-07. See below. |
 | 3.1.0 | `rules/3.1.0.md` | A4 never supplies the object: a duty to agree an activity's time or frequency is X2. See below. |
 | 4.0.0 | `rules/4.0.0.md` | A quantity to be set or sized according to another factor, or by design, is a requirement (X17), not a metric. See below. |
+| 4.1.0 | `rules/4.1.0.md` | A4 rows are metrics with no value (`value_class = metric-with-no-value`) with typical values in `metric_desc`. See below. |
 
-Default when no version is named: the newest released version (currently 4.0.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
+Default when no version is named: the newest released version (currently 4.1.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
 because rows were already saved under those labels.
+
+### 4.1.0 — 2026-10-07
+
+Minor: the same assertions are metrics as in 4.0.0; only how A4 rows are stored changes. Asked for by
+the user after the domain-expert review of `416_gold_4`/`416_gold_5` in run `20261007_120517`
+(gpt-6.1-sol): 比能耗 and 发酵周期 are real metrics of the composting equipment that the document names
+without a value, so they are metrics with no value, not requirements.
+
+- **A4** (§2.2, §3.2 new): `value_class = metric-with-no-value` (`value_class_en` "metric with no
+  value"). `limit_absent`, empty value and unit, and the `requirement_value_open` kind are unchanged.
+- **`metric_desc`** (§3.2): explains the metric (property, object, how measured, usual unit) and gives
+  typical values from domain knowledge after the marker "典型值（领域经验，非本文件规定）：" or "Typical
+  values (domain knowledge, not stated by this document):". The only place outside knowledge is allowed.
+- **Audit** (§4): every A4 row uses the class and plausible, marked typical values; no other row does.
+
+Tooling (`benchmark_io.py`), gated to rules ≥ 4.1.0: `metric-with-no-value` is a valid `value_class`;
+`limit_absent` rows and only they use it; `metric_desc` (and `metric_desc_en` for non-English sources)
+must carry the typical-values marker; `value_class_en` must be "metric with no value".
+`statement_kind` maps the class to `requirement_value_open`, as for the extractor's requirement +
+`limit_absent` rows, so scoring still matches them. The ChenWeb mirrors (`metric-statement-kind.ts`,
+`metric_statement_kind.go`) are unchanged: kb.metrics never holds the class. ChenWeb pages that show
+gold rows will label 4.1.0 A4 rows `unclassified` until the TS mirror learns the class.
 
 ### 4.0.0 — 2026-10-07
 

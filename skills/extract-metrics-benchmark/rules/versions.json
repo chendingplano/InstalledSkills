@@ -47,6 +47,12 @@
       "sha256": "82e5b8a2aa032e0650b9738c0f60d7bc2f234c7646d9dff0e7be2d179773ee34",
       "released": "2026-10-07",
       "notes": "A duty to set or size a quantity according to another factor, or by design, with no value and no party obliged to declare or agree one, is X17 (sizing duty), not A4: a domain expert reads it as a design requirement. A4 keeps declared and agreed values."
+    },
+    "4.1.0": {
+      "rules": "4.1.0.md",
+      "sha256": "a9aaf7e60fa7dfbaa68827ec0696190c0e267ac5c2717950691b7da09e41ba26",
+      "released": "2026-10-07",
+      "notes": "A4 rows are metrics with no value: value_class metric-with-no-value, and metric_desc explains the metric and gives marked typical values (domain knowledge). Same assertions are metrics as in 4.0.0."
     }
   }
 }

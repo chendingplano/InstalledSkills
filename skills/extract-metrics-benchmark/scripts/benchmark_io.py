@@ -21,6 +21,12 @@ EN_FIELDS = '''metric_name_en metric_subject_en metric_desc_en metric_context_en
 metric_unit_en value_class_en'''.split()
 RANGE_TYPES = {'lower_bound', 'upper_bound', 'exact', 'range', 'qualitative', 'limit_absent'}
 CLASSES = {'observation', 'requirement', 'target', 'reference', 'design_capability', 'definition'}
+# Rules 4.1.0+: an A4 row (value left to a declaration or agreement) is a metric with no value.
+# Benchmark-only: kb.metrics stores the same assertion as requirement + limit_absent.
+NO_VALUE_CLASS = 'metric-with-no-value'
+NO_VALUE_CLASS_EN = 'metric with no value'
+TYPICAL_VALUE_MARKERS = ('典型值（领域经验，非本文件规定）：',
+                         'Typical values (domain knowledge, not stated by this document):')
 LOCATIONS = {'sentence', 'bullet', 'table_row', 'table_cell', 'heading_context', 'mixed'}
 # benchmark_run_id: local time the run was prepared. A run is identified by
 # (skill_name, skill_version, model_name, benchmark_run_id) and is never overwritten.
@@ -44,6 +50,10 @@ def statement_kind(metric):
     """Kind of a metric row, by the same rules as ChenWeb web/src/lib/metric-statement-kind.ts
     and server/api/doc-processing/metric_statement_kind.go; change all three together."""
     value_class = metric['value_class'].strip().lower()
+    if value_class == NO_VALUE_CLASS:
+        # Gold-only class (rules 4.1.0+); the application never sees it, so the mirrors need no
+        # change: it is classified as the requirement + limit_absent row extract_metrics stores.
+        value_class = 'requirement'
     range_type = metric['value_range_type'].strip().lower()
     numeric = range_type in NUMERIC_RANGE_TYPES
     tags = [t.strip().lower() for t in metric['reasoning_tags']]
@@ -220,6 +230,8 @@ def validate(record, payload):
     gated_2_1 = version_key(payload['skill_version'])[:3] >= (2, 1, 0)
     # Checks introduced with rules 3.0.0: only rows with a measurable property are metrics.
     gated_3 = version_key(payload['skill_version'])[0] >= 3
+    # Checks introduced with rules 4.1.0: A4 rows are metrics with no value, with typical values.
+    gated_4_1 = version_key(payload['skill_version'])[:3] >= (4, 1, 0)
     rules = rule_ids(payload['skill_version']) if gated else set()
     require(isinstance(payload.get('model_name'), str) and payload['model_name'].strip(),
             'Missing model_name')
@@ -247,7 +259,20 @@ def validate(record, payload):
         ids.add(metric['metric_id'])
         require(metric['location_type'] in LOCATIONS, 'Invalid location_type')
         require(metric['value_range_type'] in RANGE_TYPES, 'Invalid value_range_type')
-        require(metric['value_class'] in CLASSES, 'Invalid value_class')
+        require(metric['value_class'] in CLASSES or
+                (gated_4_1 and metric['value_class'] == NO_VALUE_CLASS), 'Invalid value_class')
+        if gated_4_1:
+            no_value = metric['value_class'] == NO_VALUE_CLASS
+            require(no_value == (metric['value_range_type'] == 'limit_absent'),
+                    f'{metric["metric_id"]}: limit_absent rows (A4) and only they are {NO_VALUE_CLASS}')
+            if no_value:
+                english = payload['language'].lower() == 'en'
+                descs = [metric['metric_desc']] + ([] if english else [metric.get('metric_desc_en') or ''])
+                require(all(any(m in d for m in TYPICAL_VALUE_MARKERS) for d in descs),
+                        f'{metric["metric_id"]}: metric_desc{"" if english else " and metric_desc_en"} '
+                        'must explain the metric and give marked typical values (rules §3.2)')
+                require(english or metric.get('value_class_en') == NO_VALUE_CLASS_EN,
+                        f'{metric["metric_id"]}: value_class_en must be {NO_VALUE_CLASS_EN!r}')
         confidence = metric.get('confidence')
         require(type(confidence) in (int, float) and math.isfinite(confidence) and 0 <= confidence <= 1,
                 'Invalid confidence')

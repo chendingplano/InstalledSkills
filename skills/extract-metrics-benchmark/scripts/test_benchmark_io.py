@@ -363,6 +363,48 @@ class BenchmarkIOTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.io.validate(self.record, old)
 
+    def test_rules_4_1_a4_rows_are_metrics_with_no_value(self):
+        clause = 'The pump shall state its specific energy consumption.'
+        self.source.write_text(
+            '1\t1\theading\tArial\t12\t[0,0,100,20]\tPump requirements\n'
+            f'2\t1\tparagraph\tArial\t10\t[0,20,100,40]\t{clause}\n', encoding='utf-8')
+        fields = dict(metric_name='Specific energy consumption', value_range_type='limit_absent',
+                      metric_value='', metric_unit='', value_data_type='', is_explicit_metric=False,
+                      metric_desc='Electrical energy per m3 pumped, in kWh/m3. Typical values '
+                                  '(domain knowledge, not stated by this document): 0.1-0.5 kWh/m3.',
+                      threshold_or_target=clause, reasoning_tags=['kind:requirement_value_open'],
+                      evidence=[{'line': 2, 'quote': clause}])
+
+        def payload(version, **extra):
+            p = self.pinned(version)
+            p['metrics'][0].update(copy.deepcopy(fields), **extra)
+            p['candidates'][0]['rule_id'] = 'A4'
+            return p
+
+        self.io.validate(self.record, payload('4.1.0', value_class='metric-with-no-value'))
+        self.io.validate(self.record, payload('4.0.0', value_class='requirement'))
+        self.assertEqual(self.io.statement_kind(payload('4.1.0', value_class='metric-with-no-value')
+                                                ['metrics'][0]), 'requirement_value_open')
+        for version, extra in (
+                ('4.0.0', dict(value_class='metric-with-no-value')),   # class is new in 4.1.0
+                ('4.1.0', dict(value_class='requirement')),            # A4 must use it
+                ('4.1.0', dict(value_class='metric-with-no-value',     # typical values missing
+                               metric_desc='Electrical energy per m3 pumped.'))):
+            with self.subTest(version=version, extra=extra), self.assertRaises(ValueError):
+                self.io.validate(self.record, payload(version, **extra))
+        # Only limit_absent rows may use it.
+        numeric = self.pinned('4.1.0')
+        numeric['metrics'][0]['value_class'] = 'metric-with-no-value'
+        with self.assertRaises(ValueError):
+            self.io.validate(self.record, numeric)
+        # A non-English source also needs the English description and class.
+        zh = payload('4.1.0', value_class='metric-with-no-value', metric_desc='比能耗。典型值（领域经验，非本文件规定）：30–80 kWh/t。')
+        zh['language'] = 'zh'
+        with self.assertRaises(ValueError):
+            self.io.validate(self.record, zh)
+        zh['metrics'][0].update(metric_desc_en=fields['metric_desc'], value_class_en='metric with no value')
+        self.io.validate(self.record, zh)
+
     def test_rules_3_refuse_rows_with_nothing_to_measure(self):
         clause = 'Backup facilities shall comply with CJJ 27.'
         self.source.write_text(
