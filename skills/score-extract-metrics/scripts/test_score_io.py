@@ -133,5 +133,32 @@ class ScoreTests(unittest.TestCase):
             io.score(self.inp, self.matches)
 
 
+class DroppedRowsTests(unittest.TestCase):
+    dropped = [
+        {'drop_id': '416_drp_1', 'drop_stage': 'statement_kind', 'drop_reason': 'inspection_requirement',
+         'metric_name': '垃圾桶加盖', 'threshold_or_target': '垃圾桶应加盖', 'source_line_spans': ['90']},
+        {'drop_id': '416_drp_2', 'drop_stage': 'decision_model', 'drop_reason': 'activity_schedule',
+         'metric_name': '餐厨垃圾收运时间和频次', 'source_line_spans': ['101'],
+         'decision': {'choice': 'activity_schedule', 'probabilities': {'activity_schedule': 0.97}}},
+    ]
+
+    def test_exclusion_log_keeps_only_pure_requirements(self):
+        log = io.exclusion_from_dropped(self.dropped)
+        self.assertEqual([e['kind'] for e in log], ['inspection_requirement'])
+        self.assertEqual(log[0]['threshold_or_target'], '垃圾桶应加盖')
+
+    def test_section_flags_drop_on_missed_gold_lines(self):
+        inp = {'extraction': {'dropped_rows': self.dropped},
+               'gold': [row('g7', source_line_spans=['101:102'])]}
+        lines = io.dropped_rows_section(inp, {'missed': [{'gold': 'g7'}]})
+        text = '\n'.join(lines)
+        self.assertIn('## Dropped rows (2)', text)
+        self.assertIn('| 416_drp_2 | decision_model | activity_schedule | 餐厨垃圾收运时间和频次 | 0.97 | g7 |', text)
+        self.assertIn('| 416_drp_1 | statement_kind | inspection_requirement | 垃圾桶加盖 |  |  |', text)
+
+    def test_section_without_dropped_rows(self):
+        self.assertEqual(io.dropped_rows_section({'extraction': {}, 'gold': []}, {'missed': []})[-1], 'None.')
+
+
 if __name__ == '__main__':
     unittest.main()

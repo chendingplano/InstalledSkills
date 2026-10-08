@@ -190,6 +190,14 @@ under 1.0.0, about 64 hold up under the review).
 
 ## Tooling changes
 
+### 2026-10-08 — extract_metrics keeps dropped rows
+
+`extract_metrics` now saves every row it sets aside to `kb.metrics_dropped` and logs them as one
+`drop_metric_rows` entry; the `exclude_pure_requirements` entry is no longer written (ChenWeb openspec
+change `metric-row-soft-drop-decision-model`). Dropped pure requirements are the rows with
+`drop_stage = 'statement_kind'`. Rules files are unchanged; where they name the old log entry, read
+it as "the run's dropped pure requirements".
+
 ### 2026-10-07 — run audit record stored once per run
 - `testbed.metrics.ext_info` used to copy the run's whole audit record (candidate ledger, coverage,
   reviews; ~30 KB) into every row, about 94% of each row's `ext_info`. Migration `20261007000002`

@@ -145,8 +145,29 @@ def fetch_predictions(record_id):
  WHERE input_record_id = {record_id}) m;''')
 
 
+def fetch_dropped_rows(record_id):
+    """Rows extract_metrics set aside for the record (kb.metrics_dropped, ChenWeb openspec change
+    metric-row-soft-drop-decision-model). Empty when the table does not exist yet."""
+    return query_json(f'''SELECT CASE WHEN to_regclass('kb.metrics_dropped') IS NULL THEN '[]'::json ELSE (
+ SELECT COALESCE(json_agg(json_build_object('drop_id', drop_id, 'drop_stage', drop_stage,
+   'drop_reason', drop_reason, 'event_id', event_id, 'decision', decision,
+   'metric_name', row_data->>'metric_name', 'subject', row_data->>'subject',
+   'threshold_or_target', row_data->>'threshold_or_target', 'context', row_data->>'context',
+   'source_line_spans', row_data->'source_line_spans') ORDER BY id), '[]'::json)
+ FROM kb.metrics_dropped WHERE input_record_id = {record_id}) END;''')
+
+
+def exclusion_from_dropped(dropped):
+    """Pure requirements the extractor dropped, in the shape of the old exclude_pure_requirements log."""
+    return [{'kind': d['drop_reason'], 'metric_name': d.get('metric_name'), 'subject': d.get('subject'),
+             'threshold_or_target': d.get('threshold_or_target'), 'context': d.get('context'),
+             'source_line_spans': d.get('source_line_spans')}
+            for d in dropped if d.get('drop_stage') == 'statement_kind']
+
+
 def fetch_extraction_logs(record_id):
-    """The latest extract_metrics run that saved rows, and its exclude_pure_requirements entries."""
+    """The latest extract_metrics run that saved rows, and its exclude_pure_requirements entries
+    (written by runs before kb.metrics_dropped existed)."""
     return query_json(f'''WITH last AS (
  SELECT run_id, max(create_time) AS saved_at FROM kb.doc_proc_logs
  WHERE record_id = {record_id} AND doc_proc_name = 'extract_metrics'
@@ -346,6 +367,9 @@ def export(record_id, version=None, model=None, run_id=None, out_dir=None):
     if len(meta) > 1:
         warnings.append(f'kb.metrics rows come from {len(meta)} different extraction runs/prompts')
     logs = fetch_extraction_logs(record_id) or {}
+    events = {r.get('event_id') for r in preds if r.get('event_id')}
+    dropped_rows = [d for d in (fetch_dropped_rows(record_id) or []) if not events or d.get('event_id') in events]
+    exclusion_log = exclusion_from_dropped(dropped_rows) if dropped_rows else (logs.get('excluded') or [])
     payload = {
         'record_id': record_id, 'title': record.get('title'), 'doc_no': record.get('doc_no'),
         'gold_run': {**run, 'stand_in': stand_in, 'dropped_metric_ids': dropped,
@@ -353,7 +377,8 @@ def export(record_id, version=None, model=None, run_id=None, out_dir=None):
         'other_gold_runs': [r for r in runs if r['benchmark_run_id'] != run['benchmark_run_id']],
         'extraction': {'prompts_models_events': [list(m) for m in meta],
                        'created_at': [min(r['created_at'] for r in preds), max(r['created_at'] for r in preds)],
-                       'log_run_id': logs.get('run_id'), 'exclusion_log': logs.get('excluded') or []},
+                       'log_run_id': logs.get('run_id'), 'exclusion_log': exclusion_log,
+                       'dropped_rows': dropped_rows},
         'source': {'path': str(source_path) if source_path else None, 'current_sha256': current_sha,
                    'gold_sha256': run['source_sha256'], 'lines_comparable': lines_comparable},
         'warnings': warnings,
@@ -505,6 +530,7 @@ def report(inp, result, scorer_model):
               f'{len(ext["exclusion_log"])} pure requirement(s) dropped by the extractor; '
               f'gold ledger lists {sum(1 for c in inp["gold_ledger"] if c.get("rule_id") in ("X15", "X16"))} '
               'X15/X16 candidates. Diagnostic only; not part of the score.']
+    lines += dropped_rows_section(inp, result)
     warnings = list(inp['warnings'])
     if run['model_name'] == scorer_model:
         warnings.append(f'The gold run and the matching were made by the same model ({scorer_model}); '
@@ -516,6 +542,26 @@ def report(inp, result, scorer_model):
               f'({", ".join(f"{f} {w}" for f, w in WEIGHTS.items())}). Soft precision = credit / predicted rows, '
               'soft recall = credit / gold rows, score = round(100 × soft F1), clamped to 1–100.']
     return '\n'.join(lines) + '\n'
+
+
+def dropped_rows_section(inp, result):
+    """Report lines for the rows the extractor set aside (not scored). A dropped row on the same
+    lines as a missed gold row is flagged: it may be a wrong drop."""
+    dropped = inp['extraction'].get('dropped_rows') or []
+    lines = ['', f'## Dropped rows ({len(dropped)})', '']
+    if not dropped:
+        return lines + ['None.']
+    gold = {g['metric_id']: g for g in inp['gold']}
+    missed = [gold[x['gold']] for x in result['missed'] if x['gold'] in gold]
+    lines += ['Set aside by extract_metrics (kb.metrics_dropped); not counted in the score.', '',
+              '| Drop id | Stage | Reason | Metric | P | Same lines as missed gold |', '|---|---|---|---|---:|---|']
+    for d in dropped:
+        probs = (d.get('decision') or {}).get('probabilities') or {}
+        p = probs.get(d['drop_reason'])
+        overlap = ', '.join(g['metric_id'] for g in missed if line_set(g.get('source_line_spans')) & line_set(d.get('source_line_spans')))
+        lines.append(f'| {d["drop_id"]} | {d["drop_stage"]} | {d["drop_reason"]} | {d.get("metric_name") or ""} | '
+                     f'{"" if p is None else f"{p:.2f}"} | {overlap} |')
+    return lines
 
 
 def main():

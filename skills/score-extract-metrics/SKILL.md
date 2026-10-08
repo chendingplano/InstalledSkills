@@ -108,7 +108,9 @@ Give the score first, then: the gold run key (version / model / run ID) and the 
 (prompt, model, date); soft precision and soft recall (the ones the score is built from), the
 matched-row precision and recall, and the without-test-parameters score; the main error
 patterns (which fields fail most, the false-positive causes, what was missed); any warnings; and
-the `report.md` path. When comparing scores, compare only scores made against the same gold run.
+the `report.md` path. Mention any dropped row the report flags as on the same lines as a missed gold
+row: `extract_metrics` set it aside (`kb.metrics_dropped`, not scored), so it may be a wrong drop.
+When comparing scores, compare only scores made against the same gold run.
 
 ## Common mistakes
 
