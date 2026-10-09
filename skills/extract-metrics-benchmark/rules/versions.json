@@ -65,6 +65,12 @@
       "sha256": "f84573119715104c3fe33ad0756505d2ac256d0f2854913f63afad1b5d0d6fb8",
       "released": "2026-10-07",
       "notes": "Typical values of a metric with no value must be a numeric range with unit and what it depends on; 'no comparable typical value' only with a reason why no range can exist. Same metrics as 5.0.0."
+    },
+    "6.0.0": {
+      "rules": "6.0.0.md",
+      "sha256": "147a85f16476e916df72ec274b70c38e44ed177a8e2bb580417a89394e6902a7",
+      "released": "2026-10-09",
+      "notes": "A metric has at least a value: A4 and A5 retired, value-less named quantities, formulas and computation definitions are X18; definitions wherever they appear are X3; counts of the document's own parts are X4; provisions with no named quantity are X7; one row per table condition."
     }
   }
 }

@@ -5,13 +5,13 @@
 | title | Extract Metrics Benchmark — User Manual |
 | language | en |
 | format | markdown |
-| version | 1.5 |
+| version | 1.11 |
 | status | Draft |
 | author | Not specified |
 | owner | Not specified |
 | audience | People who run or review gold-metric benchmarks through a coding assistant; no programming needed |
 | create-time | 2026-10-06T08:30:04-05:00 |
-| last-modify-time | 2026-10-07T09:00:00-05:00 |
+| last-modify-time | 2026-10-09T10:00:00-05:00 |
 | keywords | gold metrics, benchmark, ground truth, extract_metrics, metric extraction quality, testbed.metrics, skill version, rules version, Claude Code, Codex, compare versions |
 
 This manual has its own version number (1.5), which is separate from the skill's rules versions listed
@@ -136,8 +136,9 @@ date.
 | 4.1.0 | `rules/4.1.0.md` | 2026-10-07 | Same choice of metrics as 4.0.0. A metric the document names but gives no value for ("the equipment shall state its specific energy consumption") is now labelled a **metric with no value** (`value_class = metric-with-no-value`) instead of a requirement, and its description explains what the metric is and gives its typical values from domain knowledge, marked as not coming from the document. For document 416 that is 比能耗 and 发酵周期. |
 | 5.0.0 | `rules/5.0.0.md` | 2026-10-07 | Consistent with 4.1.0: a rule that only says a quantity should be **sized to suit** something else ("size the composting room's chamber volume for the daily amount of waste") also names a real metric without a value, so it counts again, as a metric with no value with its typical values. 4.0.0 had dropped it as a design requirement. For document 416 this gives 33 gold metrics. |
 | 5.1.0 | `rules/5.1.0.md` | 2026-10-07 | Same metrics as 5.0.0. The description of a metric with no value must now give its typical values as a rough number range with a unit (for example "about 30–80 kWh/t, depending on the machine"), not "no reliable typical value". Saying there is no typical value is allowed only with a reason why no range can exist. |
+| 6.0.0 | `rules/6.0.0.md` | 2026-10-09 | **A metric has at least a value.** Anything the document names without giving a value is no longer a metric: a value to be stated by the supplier, agreed or sized later ("the equipment shall state its energy consumption"), a formula or a definition of how something is calculated, and a list of things to record. So are definitions of terms wherever they appear, counts of the document's own parts ("use two test methods", "divided into four categories"), and duties to provide equipment or staff that name no number. Numbers inside definitions still count. A table that gives one value per condition gives one metric per condition. This matches the automatic extraction since 2026-10-09, which sets such rows aside. For document 416, 比能耗, 发酵周期 and 单室体积 drop out. |
 
-**If you don't name a version, the newest one is used** (the highest version number; currently 5.1.0).
+**If you don't name a version, the newest one is used** (the highest version number; currently 6.0.0).
 Draft versions marked as pre-releases, such as `2.0.0-rc.1`, are used only when you name them. The
 assistant tells you which version it used.
 
@@ -150,7 +151,8 @@ often an activity is done. Version **4.0.0** also drops requirements that only s
 suit something else; the automatic extraction still keeps those, so expect them as its false positives. Version **4.1.0** counts the same metrics as 4.0.0 but labels
 the ones the document names without a value as metrics with no value, and describes each with its typical values. Version **5.0.0** counts the sized-to-suit quantities again, as
 metrics with no value, so the automatic extraction's matching rows are no longer false positives. Version **5.1.0** requires real
-typical-value ranges in those metrics' descriptions.
+typical-value ranges in those metrics' descriptions. Version **6.0.0** reverses that direction: a metric must have a value, so
+metrics with no value, formulas and definitions are all left out; use it to score the automatic extraction from 2026-10-09 on.
 
 If you ask for a version that isn't in the list, the assistant will refuse and show you the versions
 that exist.
@@ -219,6 +221,7 @@ instructions from this skill. Judge it as a human domain expert.
 
 | Version | Timestamp | Author | Reason | Summary |
 |---|---|---|---|---|
+| 1.11 | 2026-10-09T10:00:00-05:00 | Not specified (drafted by Claude Code) | Rules version 6.0.0 released | Added 6.0.0 to Available versions; it is now the default. |
 | 1.10 | 2026-10-07T13:45:00-05:00 | Not specified (drafted by Claude Code) | Rules version 5.1.0 released | Added 5.1.0 to Available versions; it is now the default. |
 | 1.9 | 2026-10-07T13:30:00-05:00 | Not specified (drafted by Claude Code) | Rules version 5.0.0 released | Added 5.0.0 to Available versions; it is now the default. |
 | 1.8 | 2026-10-07T13:00:00-05:00 | Not specified (drafted by Claude Code) | Rules version 4.1.0 released | Added 4.1.0 to Available versions; it is now the default. |

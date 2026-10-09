@@ -245,6 +245,8 @@ def validate(record, payload):
     gated_4_1 = version_key(payload['skill_version'])[:3] >= (4, 1, 0)
     # Checks introduced with rules 5.1.0: typical values are a numeric range (or a reasoned escape).
     gated_5_1 = version_key(payload['skill_version'])[:3] >= (5, 1, 0)
+    # Checks introduced with rules 6.0.0: a metric states a value (A4 and A5 retired, X18).
+    gated_6 = version_key(payload['skill_version'])[0] >= 6
     rules = rule_ids(payload['skill_version']) if gated else set()
     require(isinstance(payload.get('model_name'), str) and payload['model_name'].strip(),
             'Missing model_name')
@@ -295,6 +297,12 @@ def validate(record, payload):
         require(type(explicit) is bool, 'is_explicit_metric must be boolean')
         numeric = metric['value_range_type'] not in ('qualitative', 'limit_absent')
         require(explicit == numeric, 'is_explicit_metric contradicts value_range_type')
+        require(not gated_6 or numeric,
+                f'{metric["metric_id"]}: a metric states a value; a value-less candidate is X18 (rules §3.2)')
+        require(not gated_6 or metric['value_class'] != 'definition' or
+                'interpretation_bound' in metric['reasoning_tags'],
+                f'{metric["metric_id"]}: value_class definition is only for interpretation cut-offs; '
+                'a formula or definition without a value is X18, a term definition X3')
         if numeric:
             require(re.search(r'\d', metric['metric_value']), 'Numeric metric needs a source value')
             require(not gated or not COMPARATORS.search(metric['metric_value']),

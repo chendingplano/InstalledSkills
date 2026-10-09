@@ -418,6 +418,42 @@ class BenchmarkIOTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.io.validate(self.record, payload)
 
+    def test_rules_6_a_metric_states_a_value(self):
+        ids5, ids6 = self.io.rule_ids('5.1.0'), self.io.rule_ids('6.0.0')
+        self.assertEqual(ids5 - {'A4', 'A5'} | {'X18'}, ids6)
+        self.io.validate(self.record, self.pinned('6.0.0'))          # a numeric row is still A1
+        clause = 'The pump shall state its specific energy consumption.'
+        self.source.write_text(
+            '1\t1\theading\tArial\t12\t[0,0,100,20]\tPump requirements\n'
+            f'2\t1\tparagraph\tArial\t10\t[0,20,100,40]\t{clause}\n', encoding='utf-8')
+        open_value = self.pinned('6.0.0')
+        open_value['metrics'][0].update(
+            metric_name='Specific energy consumption', value_range_type='limit_absent',
+            value_class='requirement', metric_value='', metric_unit='', value_data_type='',
+            is_explicit_metric=False, threshold_or_target=clause,
+            reasoning_tags=['kind:requirement_value_open'], evidence=[{'line': 2, 'quote': clause}])
+        open_value['candidates'][0]['rule_id'] = 'A1'
+        with self.assertRaises(ValueError):                          # no value: not a metric
+            self.io.validate(self.record, open_value)
+        excluded = self.pinned('6.0.0')
+        excluded['metrics'] = []
+        excluded['candidates'] = [{'candidate_id': 'c1', 'decision': 'excluded', 'metric_ids': [],
+                                   'source_line_spans': ['2'], 'rule_id': 'X18',
+                                   'reason': 'Pump energy use to be declared by the supplier; no value.'}]
+        self.io.validate(self.record, excluded)
+        for retired in ('A4', 'A5'):
+            again = copy.deepcopy(excluded)
+            again['candidates'][0].update(decision='accepted', rule_id=retired)
+            with self.assertRaises(ValueError):
+                self.io.validate(self.record, again)
+
+    def test_rules_6_definition_class_is_only_for_interpretation_cutoffs(self):
+        formula = self.pinned('6.0.0')
+        formula['metrics'][0].update(value_class='definition', formula_or_definition='P = E / t',
+                                     reasoning_tags=['kind:metric_definition'])
+        with self.assertRaises(ValueError):
+            self.io.validate(self.record, formula)
+
     def test_rules_4_1_a4_rows_are_metrics_with_no_value(self):
         clause = 'The pump shall state its specific energy consumption.'
         self.source.write_text(

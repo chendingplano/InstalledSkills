@@ -23,9 +23,42 @@ Two kinds of change are tracked separately:
 | 4.1.0 | `rules/4.1.0.md` | A4 rows are metrics with no value (`value_class = metric-with-no-value`) with typical values in `metric_desc`. See below. |
 | 5.0.0 | `rules/5.0.0.md` | Sizing duties (X17) are metrics with no value too: A4 covers values to be declared, agreed, or set/sized by another factor. X17 retired. See below. |
 | 5.1.0 | `rules/5.1.0.md` | Typical values of a metric with no value must be a numeric range with unit; "no typical value" only with a reason. See below. |
+| 6.0.0 | `rules/6.0.0.md` | A metric has at least a value: A4 and A5 retired, value-less candidates are X18; definitions anywhere are X3; counts of the document's own parts are X4; provisions with no named quantity are X7. See below. |
 
-Default when no version is named: the newest released version (currently 5.1.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
+Default when no version is named: the newest released version (currently 6.0.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
 because rows were already saved under those labels.
+
+### 6.0.0 — 2026-10-09
+
+Major: which assertions are metrics changes. Follows the user's decisions while reviewing
+`extract_metrics` on records 416 and 753 (devdoc `2026100801-devdoc-extract-metrics-soft-drop-and-filtering`):
+after many rounds of keeping some value-less candidates and excluding others, the rule is **a metric
+has at least a value**; a named quantity without one is at most a definition.
+
+- **§2.1:** gate (c) needs a value stated by this document; the "value left open" stand-in is gone.
+- **A4 retired.** Quantities to be declared, agreed, or set/sized by another factor or by design are
+  **X18 (no value)**; `value_class = metric-with-no-value` and the typical-values text (4.1.0–5.1.0)
+  are no longer used. 416's 比能耗, 发酵周期 and 单室体积 are X18.
+- **A5 retired.** A formula or a definition of how a quantity is computed states no value: X18
+  ("标准排热量为两种方法测量结果的算术平均值", 753). Interpretation cut-offs keep their value and stay A1
+  (`value_class = definition` is only for them).
+- **X3** covers definitions wherever they appear: definitions clause, symbol/abbreviation list,
+  "式中" explanation, note, running text (753's 3.7–3.15 and its symbols table). A number inside a
+  definition that is a value or limit of a named quantity is A1, aggressively (高滑移: 滑移温度 > 3 K at
+  40 °C); a number that only describes the computation is not (两个独立测点的算术平均值).
+- **X4** is a count of the document's own parts: categories, methods, procedures, steps, definitions,
+  concepts, clauses ("应使用两种试验方法", 753). Counts of samples, measuring points, sensors and sets of
+  readings stay A1/A6 (A6 now lists them).
+- **X7** includes provisions with no named quantity even when "suitable" or "according to" factors
+  (416's "配备相应的收集、运输设备和作业人员": no 配备数量).
+- **§3 splitting:** one row per condition (753's SC1/SC2/SC3), never one row with "25; 25; 35".
+- **§3.2** is now how to record X18 candidates, the answer key for the extractor's `no_value` drops.
+- **Audit (§4):** no accepted row is `qualitative` or `limit_absent`.
+- Open judgement recorded in the rules: a bound whose value is only a formula
+  ("τ ≥ (200 × Δt_i × C) / P") is X18, matching the extractor; revisit if that loses real criteria.
+- Tooling: `validate` (rules ≥ 6.0.0) refuses an accepted row without a value (`qualitative`,
+  `limit_absent`) and a `definition` row that is not an `interpretation_bound`. Citing A4, A5 or X17
+  is refused because they are not rule IDs of 6.0.0.
 
 ### 5.1.0 — 2026-10-07
 
