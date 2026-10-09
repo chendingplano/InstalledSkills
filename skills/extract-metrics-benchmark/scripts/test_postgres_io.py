@@ -73,6 +73,7 @@ class PostgresIOTests(unittest.TestCase):
                 self.assertEqual(saved[0]['skill_version'], fixture.io.newest_version())
                 self.assertEqual(saved[0]['skill_name'], fixture.io.skill_name())
                 self.assertEqual(saved[0]['model_name'], 'test-model')
+                self.assertEqual(saved[0]['run_id'], fixture.payload['benchmark_run_id'])
                 saved_run = json.loads(sql('SELECT to_jsonb(r) FROM testbed.metric_benchmark_runs r;'))
                 self.assertEqual(saved_run['candidates'], fixture.payload['candidates'])
                 self.assertEqual(saved_run['coverage'], fixture.payload['coverage'])
@@ -91,8 +92,16 @@ class PostgresIOTests(unittest.TestCase):
                 sql(fixture.io.save_sql(record, rerun, fixture.io.validate(record, rerun)))
                 self.assertEqual(sql('SELECT count(DISTINCT benchmark_run_id) FROM testbed.metrics;'), '2')
                 self.assertEqual(sql('SELECT count(*) FROM testbed.metric_benchmark_runs;'), '2')
+                self.assertEqual(sql('SELECT count(*) FROM testbed.metrics WHERE run_id IS DISTINCT FROM benchmark_run_id;'), '0')
+                # Dropping/re-adding the alias preserves runs and populates existing rows.
+                alias = migrations[-1]
+                sql('BEGIN;\n' + alias[1] + '\nCOMMIT;')
+                self.assertEqual(sql("SELECT count(*) FROM information_schema.columns WHERE table_schema='testbed' AND table_name='metrics' AND column_name='run_id';"), '0')
+                sql('BEGIN;\n' + alias[0] + '\nCOMMIT;')
+                self.assertEqual(sql('SELECT count(*) FROM testbed.metrics WHERE run_id = benchmark_run_id;'), '2')
                 # Down restores the per-row audit record; Up collapses it again.
-                last = migrations[-1]
+                last = next(m for m in migrations if
+                            'CREATE TABLE IF NOT EXISTS testbed.metric_benchmark_runs' in m[0])
                 sql('BEGIN;\n' + last[1] + '\nCOMMIT;')
                 self.assertEqual(sql("SELECT count(*) FROM testbed.metrics WHERE ext_info ? 'candidates';"), '2')
                 sql('BEGIN;\n' + last[0] + '\nCOMMIT;')

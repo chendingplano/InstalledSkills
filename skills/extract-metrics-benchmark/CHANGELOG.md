@@ -223,6 +223,14 @@ under 1.0.0, about 64 hold up under the review).
 
 ## Tooling changes
 
+### 2026-10-10 — run_id column
+
+The Goose project migration `20261010000002_add_run_id_to_testbed_metrics.sql` adds
+`testbed.metrics.run_id`, a stored generated column equal to `benchmark_run_id`.
+Existing rows and new saves receive it automatically; writers and full composite
+run identity are unchanged. PostgreSQL integration checks cover saves, existing-row
+population and rollback/reapply. No rules version changes.
+
 ### 2026-10-08 — extract_metrics keeps dropped rows
 
 `extract_metrics` now saves every row it sets aside to `kb.metrics_dropped` and logs them as one
