@@ -1,0 +1,4 @@
+interface:
+  display_name: "Extract References Benchmark"
+  short_description: "Build audited reference benchmarks from document lines"
+  default_prompt: "Use $extract-references-benchmark to extract and audit references for kb.inputs.id 123 and save the benchmark to testbed.ref_mentions."

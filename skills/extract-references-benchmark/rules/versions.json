@@ -1,0 +1,10 @@
+{
+  "versions": {
+    "1.0.0": {
+      "rules": "1.0.0.md",
+      "sha256": "48e6f89667f91667352c3a3524abcd922763b961935423d1ea325fcffbff9b46",
+      "released": "2026-10-11",
+      "notes": "First release: reference model of extract_references (devdoc 2026101002 §3, openspec extract-references-processor, prompt-extract-references-v1)."
+    }
+  }
+}
