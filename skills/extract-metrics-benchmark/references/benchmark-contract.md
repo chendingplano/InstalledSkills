@@ -80,6 +80,16 @@ Populate the prepared payload; retain its ID/path/hash/run ID/skill name/skill v
 
 Benchmark-local `metric_id` convention: `<record_id>_gold_<seqno>`; not a production metric/candidate ID. Ledger IDs are unique within a review. Accepted candidates link final metrics; excluded candidates link none; duplicate candidates link retained metrics. Uncertain decisions or nonempty `limitations` block saving.
 
+Saving also persists every excluded and duplicate candidate in `testbed.metrics_dropped`.
+Its `run_id` equals `testbed.metrics.run_id` and the payload's `benchmark_run_id`.
+Match the full skill name/version/model/run identity when reading drops. `candidate_id`
+is unique within that run, `drop_reason` is the candidate's rule ID (or decision for
+legacy 1.x runs), and `candidate_data` preserves the complete reviewed ledger entry,
+including rationale, spans, any table references, excerpts and duplicate metric links.
+Candidates need not have enriched metric fields: do not invent names or measured
+values. Add source-grounded `metric_name` and `source_table_rows` when available to
+improve browsing; older minimal candidates remain supported.
+
 **Rules 2.0.0 and later.** Each candidate carries `rule_id`, one of the bold rule IDs in that version's rules file: an `A` rule for `accepted`, an `X` rule for `excluded`, `D1` for `duplicate`. `validate` reads the IDs from the rules file. Payloads for rules 1.x need no `rule_id` and keep their original checks. From rules 3.0.0 there is no A2 or A3; inspection and delegated requirements are `excluded` with X15 or X16, one candidate per requirement, and the reason names the object and, for X16, each cited document (`NY 884`).
 
 Use **storage names** (`metric_subject`, `metric_desc`, `metric_context`, `metric_keywords`, `metric_unit`), not enrichment aliases (`subject`, `desc`, `context`, `keywords`, `unit`). Empty source-absent text is `""`; absent endpoints are null. Arrays remain JSON arrays.
@@ -114,6 +124,14 @@ Committed schema: `ChenWeb/project_migrations/20261006000001_create_testbed_metr
 
 `20261010000002_add_run_id_to_testbed_metrics.sql` adds `testbed.metrics.run_id` as a stored generated `TEXT NOT NULL` column equal to `benchmark_run_id`. Existing rows receive it automatically, and future saves continue writing only `benchmark_run_id`; do not insert or update `run_id` directly. The full run identity still includes `skill_name`, `skill_version` and `model_name` because timestamp IDs alone need not be unique across those fields.
 
+`20261010000003_create_testbed_metrics_dropped.sql` creates dropped-candidate storage
+and backfills all excluded and duplicate candidates from existing run audit ledgers.
+The foreign key references the full run identity in `testbed.metric_benchmark_runs`.
+The helper saves the run, gold rows and dropped candidates atomically, including runs
+with zero gold metrics; duplicate-save protection checks the run table. In the Benchmark
+page, gold and dropped views use one resolved run, and production drops remain in
+`kb.metrics_dropped` for the production Metrics page.
+
 Inspect before saving:
 
 ```sql
@@ -132,7 +150,7 @@ python3 .agents/skills/extract-metrics-benchmark/scripts/benchmark_io.py save \
   --record /tmp/metrics-123-record.json --payload /tmp/metrics-123-benchmark.json
 ```
 
-The helper sends fixed-identifier, quoted JSON SQL through `psql` stdin with `ON_ERROR_STOP=1`. The run row and all metric rows insert atomically, run row first. A run key (`skill_name`, `skill_version`, `model_name`, `benchmark_run_id`) is used once: the transaction takes an advisory lock on the key and aborts if any row already carries it, and the table enforces `UNIQUE (skill_name, skill_version, model_name, benchmark_run_id, metric_id)` plus the `yyyymmdd_hhmmss` format. Fresh runs append snapshots; nothing is replaced. After an ambiguous connection failure, query by the run key before retrying; a refused save of an already-saved key means the run is already stored.
+The helper sends fixed-identifier, quoted JSON SQL through `psql` stdin with `ON_ERROR_STOP=1`. The run row, gold rows and dropped candidates insert atomically, run row first. A run key (`skill_name`, `skill_version`, `model_name`, `benchmark_run_id`) is used once: the transaction takes an advisory lock on the key and aborts if the run audit already exists, and the gold table enforces `UNIQUE (skill_name, skill_version, model_name, benchmark_run_id, metric_id)` plus the `yyyymmdd_hhmmss` format. Fresh runs append snapshots; nothing is replaced. After an ambiguous connection failure, query by the run key before retrying; a refused save of an already-saved key means the run is already stored.
 
 Read back, substituting the prepared run key:
 
@@ -156,4 +174,14 @@ WHERE benchmark_run_id = :'run_id' AND skill_name = 'extract-metrics-benchmark'
   AND skill_version = :'skill_version' AND model_name = :'model_name';
 ```
 
-Compare all substantive fields/excerpts/hash to validated JSON, allowing only database-managed ID/time fields and helper-generated audit timestamps. Numeric endpoints may deserialize as floats. Report the explicit evaluation run ID; never count multiple snapshots together. An empty verified document retains local review JSON but creates no rows. If DB access is unavailable, retain validated JSON and report persistence pending; artifacts alone are not a saved benchmark.
+Read the dropped candidates back too, and compare exactly to the excluded and duplicate ledger entries:
+
+```sql
+SELECT COALESCE(jsonb_agg(d.candidate_data ORDER BY d.candidate_id), '[]'::jsonb)
+FROM testbed.metrics_dropped d
+WHERE input_record_id = :'record_id'::bigint AND run_id = :'run_id'
+  AND skill_name = 'extract-metrics-benchmark' AND skill_version = :'skill_version'
+  AND model_name = :'model_name';
+```
+
+Compare all substantive fields/excerpts/hash to validated JSON, allowing only database-managed ID/time fields and helper-generated audit timestamps. Numeric endpoints may deserialize as floats. Report the explicit evaluation run ID; never count multiple snapshots together. An empty verified document saves its audit and any dropped candidates, with zero gold rows. If DB access is unavailable, retain validated JSON and report persistence pending; artifacts alone are not a saved benchmark.

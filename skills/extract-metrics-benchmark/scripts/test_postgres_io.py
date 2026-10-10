@@ -25,7 +25,7 @@ class PostgresIOTests(unittest.TestCase):
         script = Path(__file__).resolve()
         workspace = script.parents[4]
         migrations = [path.read_text().split('-- +goose Down') for path in
-                      sorted((workspace / 'ChenWeb/project_migrations').glob('*testbed_metrics.sql'))]
+                      sorted((workspace / 'ChenWeb/project_migrations').glob('*testbed_metrics*.sql'))]
         self.assertGreaterEqual(len(migrations), 6)
         up = '\n'.join(m[0] for m in migrations)
         down = '\n'.join(m[1] for m in reversed(migrations))
@@ -57,8 +57,15 @@ class PostgresIOTests(unittest.TestCase):
                 sql('BEGIN;\n' + down + '\nCOMMIT;')
                 self.assertEqual(sql("SELECT to_regclass('testbed.metrics') IS NULL;"), 't')
                 self.assertEqual(sql("SELECT to_regclass('testbed.metric_benchmark_runs') IS NULL;"), 't')
+                self.assertEqual(sql("SELECT to_regclass('testbed.metrics_dropped') IS NULL;"), 't')
                 sql('BEGIN;\n' + up + '\nCOMMIT;')
                 record = fixture.record
+                fixture.payload['candidates'].extend([
+                    {'candidate_id': 'excluded', 'decision': 'excluded', 'rule_id': 'X1',
+                     'reason': 'Heading is not a metric.', 'metric_ids': [], 'source_line_spans': ['1']},
+                    {'candidate_id': 'duplicate', 'decision': 'duplicate', 'rule_id': 'D1',
+                     'reason': 'Repeated pressure assertion.', 'metric_ids': ['123_gold_1'],
+                     'source_line_spans': ['2']}])
                 quote = lambda text: "'" + text.replace("'", "''") + "'"
                 sql('INSERT INTO kb.inputs VALUES (' + str(record['id']) + ', ' +
                     ', '.join(quote(record[k]) for k in
@@ -79,6 +86,13 @@ class PostgresIOTests(unittest.TestCase):
                 self.assertEqual(saved_run['coverage'], fixture.payload['coverage'])
                 self.assertEqual(saved_run['benchmark_run_id'], fixture.payload['benchmark_run_id'])
                 self.assertNotIn('candidates', saved[0]['ext_info'])
+                dropped = json.loads(sql('SELECT jsonb_agg(to_jsonb(d) ORDER BY candidate_id) FROM testbed.metrics_dropped d;'))
+                self.assertEqual(len(dropped), 2)
+                for row, candidate in zip(dropped, sorted(fixture.payload['candidates'][1:], key=lambda c: c['candidate_id'])):
+                    self.assertEqual(row['candidate_data'], candidate)
+                    self.assertEqual(row['run_id'], saved[0]['run_id'])
+                    self.assertEqual(row['drop_reason'], candidate['rule_id'])
+                self.assertEqual(sql('SELECT count(*) FROM testbed.metrics_dropped;'), '2')
                 sql(save, succeeds=False)
                 sql(fixture.io.save_sql(dict(record, staging_filename='wrong.pdf'),
                                         fixture.payload, rows), succeeds=False)
@@ -87,14 +101,27 @@ class PostgresIOTests(unittest.TestCase):
                 sql(fixture.io.save_sql(record, fixture.payload, broken), succeeds=False)
                 self.assertEqual(sql('SELECT count(*) FROM testbed.metrics;'), '1')
                 self.assertEqual(sql('SELECT count(*) FROM testbed.metric_benchmark_runs;'), '1')
+                self.assertEqual(sql('SELECT count(*) FROM testbed.metrics_dropped;'), '2')
                 # A new run key appends a new snapshot; the first run is untouched.
                 rerun = dict(fixture.payload, benchmark_run_id='20000101_000000')
                 sql(fixture.io.save_sql(record, rerun, fixture.io.validate(record, rerun)))
                 self.assertEqual(sql('SELECT count(DISTINCT benchmark_run_id) FROM testbed.metrics;'), '2')
                 self.assertEqual(sql('SELECT count(*) FROM testbed.metric_benchmark_runs;'), '2')
+                self.assertEqual(sql('SELECT count(DISTINCT run_id) FROM testbed.metrics_dropped;'), '2')
+                # A second model with the same timestamp remains a separate run.
+                other_model = dict(rerun, model_name='other-model')
+                sql(fixture.io.save_sql(record, other_model, fixture.io.validate(record, other_model)))
+                self.assertEqual(sql("SELECT count(*) FROM testbed.metrics_dropped WHERE model_name='other-model';"), '2')
+                # Backfill existing audit ledgers after rollback/reapply.
+                drops = migrations[-1]
+                sql('BEGIN;\n' + drops[1] + '\nCOMMIT;')
+                sql('BEGIN;\n' + drops[0] + '\nCOMMIT;')
+                self.assertEqual(sql('SELECT count(*) FROM testbed.metrics_dropped;'), '6')
+                # Remove the extra model before the existing two-run audit checks.
+                sql("DELETE FROM testbed.metrics_dropped WHERE model_name='other-model'; DELETE FROM testbed.metrics WHERE model_name='other-model'; DELETE FROM testbed.metric_benchmark_runs WHERE model_name='other-model';")
                 self.assertEqual(sql('SELECT count(*) FROM testbed.metrics WHERE run_id IS DISTINCT FROM benchmark_run_id;'), '0')
                 # Dropping/re-adding the alias preserves runs and populates existing rows.
-                alias = migrations[-1]
+                alias = next(m for m in migrations if 'GENERATED ALWAYS AS (benchmark_run_id)' in m[0])
                 sql('BEGIN;\n' + alias[1] + '\nCOMMIT;')
                 self.assertEqual(sql("SELECT count(*) FROM information_schema.columns WHERE table_schema='testbed' AND table_name='metrics' AND column_name='run_id';"), '0')
                 sql('BEGIN;\n' + alias[0] + '\nCOMMIT;')
@@ -102,11 +129,19 @@ class PostgresIOTests(unittest.TestCase):
                 # Down restores the per-row audit record; Up collapses it again.
                 last = next(m for m in migrations if
                             'CREATE TABLE IF NOT EXISTS testbed.metric_benchmark_runs' in m[0])
+                sql('BEGIN;\n' + drops[1] + '\nCOMMIT;')
                 sql('BEGIN;\n' + last[1] + '\nCOMMIT;')
                 self.assertEqual(sql("SELECT count(*) FROM testbed.metrics WHERE ext_info ? 'candidates';"), '2')
                 sql('BEGIN;\n' + last[0] + '\nCOMMIT;')
+                sql('BEGIN;\n' + drops[0] + '\nCOMMIT;')
                 self.assertEqual(sql('SELECT count(*) FROM testbed.metric_benchmark_runs;'), '2')
                 self.assertEqual(sql("SELECT count(*) FROM testbed.metrics WHERE ext_info ? 'candidates';"), '0')
+                # A run with only excluded candidates persists its audit and drops.
+                empty = dict(fixture.payload, benchmark_run_id='20000102_000000', metrics=[],
+                             candidates=[fixture.payload['candidates'][1]])
+                sql(fixture.io.save_sql(record, empty, fixture.io.validate(record, empty)))
+                self.assertEqual(sql("SELECT count(*) FROM testbed.metrics_dropped WHERE run_id='20000102_000000';"), '1')
+                sql(fixture.io.save_sql(record, empty, []), succeeds=False)
             finally:
                 run(['pg_ctl', '-D', str(data), '-m', 'immediate', '-w', 'stop'])
 

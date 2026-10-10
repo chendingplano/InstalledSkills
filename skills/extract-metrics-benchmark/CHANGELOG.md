@@ -223,6 +223,15 @@ under 1.0.0, about 64 hold up under the review).
 
 ## Tooling changes
 
+### 2026-10-10 — persist benchmark dropped candidates
+
+Save excluded and duplicate candidates to `testbed.metrics_dropped` with the same
+run ID and full skill/version/model identity as gold metrics, preserving the original
+candidate JSON. The project migration backfills existing run ledgers. Saves are atomic
+across the run audit, gold metrics and dropped candidates; runs with zero gold rows
+now persist their audit and drops too, and cannot be saved twice. The Benchmark page
+loads drops from this table for the same resolved run as its gold view. Rules are unchanged.
+
 ### 2026-10-10 — run_id column
 
 The Goose project migration `20261010000002_add_run_id_to_testbed_metrics.sql` adds

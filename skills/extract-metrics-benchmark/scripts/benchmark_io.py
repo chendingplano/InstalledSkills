@@ -465,7 +465,7 @@ def save_sql(record, payload, rows):
     run_key = ' AND '.join(f"{key} = {sql_text(payload[key])}" for key in
                            ('skill_name', 'skill_version', 'model_name', 'benchmark_run_id'))
     # A run key is used once: the advisory lock serializes concurrent saves of the same key,
-    # and the guard aborts the transaction if any row already carries it.
+    # and the guard aborts if the run audit already exists, even with zero gold rows.
     return f'''BEGIN;
 SET LOCAL standard_conforming_strings = on;
 SELECT id FROM kb.inputs WHERE id = {record['id']} FOR SHARE;
@@ -477,13 +477,26 @@ INSERT INTO benchmark_input_guard SELECT EXISTS (
 SELECT pg_advisory_xact_lock(hashtextextended({sql_text(run_key)}, 0));
 CREATE TEMP TABLE benchmark_run_key_unused (ok BOOLEAN NOT NULL CHECK (ok)) ON COMMIT DROP;
 INSERT INTO benchmark_run_key_unused SELECT NOT EXISTS (
- SELECT 1 FROM testbed.metrics WHERE {run_key});
+ SELECT 1 FROM testbed.metric_benchmark_runs WHERE {run_key});
 INSERT INTO testbed.metric_benchmark_runs ({run_columns})
  SELECT {run_columns} FROM jsonb_populate_record(NULL::testbed.metric_benchmark_runs, {sql_json(run)});
 INSERT INTO testbed.metrics ({columns})
  SELECT {columns} FROM jsonb_populate_recordset(NULL::testbed.metrics, {sql_json(rows)});
+INSERT INTO testbed.metrics_dropped
+ (input_record_id, skill_name, skill_version, model_name, run_id, candidate_id,
+  decision, drop_reason, candidate_data)
+ SELECT r.input_record_id, r.skill_name, r.skill_version, r.model_name, r.benchmark_run_id,
+        c->>'candidate_id', c->>'decision', COALESCE(NULLIF(c->>'rule_id', ''), c->>'decision'), c
+ FROM testbed.metric_benchmark_runs r
+ CROSS JOIN LATERAL jsonb_array_elements(r.candidates) c
+ WHERE {run_key} AND c->>'decision' IN ('excluded', 'duplicate');
 SELECT count(*) AS saved_metrics FROM testbed.metrics
  WHERE {run_key};
+SELECT count(*) AS saved_dropped FROM testbed.metrics_dropped
+ WHERE skill_name = {sql_text(payload['skill_name'])}
+   AND skill_version = {sql_text(payload['skill_version'])}
+   AND model_name = {sql_text(payload['model_name'])}
+   AND run_id = {sql_text(payload['benchmark_run_id'])};
 COMMIT;
 '''
 
@@ -510,13 +523,13 @@ def main():
     payload = json.loads(args.payload.read_text(encoding='utf-8'))
     rows = validate(record, payload)
     if args.action == 'save':
-        require(rows, 'Zero metrics: retain the audit JSON; no benchmark rows to save')
         subprocess.run(['psql', '-X', '-v', 'ON_ERROR_STOP=1'], input=save_sql(record, payload, rows),
                        text=True, check=True)
     print(json.dumps({'action': args.action, 'record_id': record['id'],
                       'benchmark_run_id': payload['benchmark_run_id'],
                       'skill_name': payload['skill_name'], 'skill_version': payload['skill_version'],
-                      'model_name': payload['model_name'], 'metrics': len(rows)}))
+                      'model_name': payload['model_name'], 'metrics': len(rows),
+                      'dropped': sum(c['decision'] in ('excluded', 'duplicate') for c in payload['candidates'])}))
 
 
 if __name__ == '__main__':
