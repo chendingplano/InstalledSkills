@@ -143,10 +143,12 @@ def fetch_gold_rows(record_id, run):
 
 
 def fetch_predictions(record_id):
+    # Resolved reference rows (ref_mention_id set) carry another document's value and are never
+    # scored (ChenWeb openspec change extract-references-processor).
     cols = ', '.join(METRIC_FIELDS)
     return query_json(f'''SELECT COALESCE(json_agg(row_to_json(m) ORDER BY m.id), '[]') FROM (
  SELECT id, {cols}, model_name, prompt_name, event_id, created_at FROM kb.metrics
- WHERE input_record_id = {record_id}) m;''')
+ WHERE input_record_id = {record_id} AND ref_mention_id IS NULL) m;''')
 
 
 def fetch_dropped_rows(record_id):
