@@ -390,7 +390,7 @@ def validate(record, payload):
         if payload['language'].lower() != 'en':
             string_list(metric.get('metric_keywords_en', []), 'metric_keywords_en')
             row['metric_keywords_en'] = metric.get('metric_keywords_en', [])
-        row.update(input_record_id=record['id'], benchmark_run_id=payload['benchmark_run_id'],
+        row.update(input_record_id=record['id'], run_id=payload['benchmark_run_id'],
                    source_filename=str(path), source_sha256=digest,
                    skill_name=payload['skill_name'], skill_version=payload['skill_version'],
                    model_name=payload['model_name'],
@@ -456,7 +456,7 @@ def save_sql(record, payload, rows):
     # Fixed SQL identifiers and quoted JSON data; psql receives no credentials or SQL on argv.
     fields = TEXT_FIELDS + ARRAY_FIELDS + EN_FIELDS + ['metric_keywords_en', 'source_table_rows',
               'confidence', 'is_explicit_metric', 'value_min', 'value_max', 'input_record_id',
-              'benchmark_run_id', 'source_filename', 'source_sha256', 'skill_name', 'skill_version', 'model_name',
+              'run_id', 'source_filename', 'source_sha256', 'skill_name', 'skill_version', 'model_name',
               'ext_info']
     columns = ', '.join(fields)
     run = run_row(record, payload)
@@ -464,6 +464,9 @@ def save_sql(record, payload, rows):
     identity = {key: record.get(key) for key in ('result_filename', 'staging_filename', 'parser_name')}
     run_key = ' AND '.join(f"{key} = {sql_text(payload[key])}" for key in
                            ('skill_name', 'skill_version', 'model_name', 'benchmark_run_id'))
+    metric_run_key = ' AND '.join(f"{column} = {sql_text(payload[key])}" for column, key in
+                                 (('skill_name', 'skill_name'), ('skill_version', 'skill_version'),
+                                  ('model_name', 'model_name'), ('run_id', 'benchmark_run_id')))
     # A run key is used once: the advisory lock serializes concurrent saves of the same key,
     # and the guard aborts if the run audit already exists, even with zero gold rows.
     return f'''BEGIN;
@@ -491,7 +494,7 @@ INSERT INTO testbed.metrics_dropped
  CROSS JOIN LATERAL jsonb_array_elements(r.candidates) c
  WHERE {run_key} AND c->>'decision' IN ('excluded', 'duplicate');
 SELECT count(*) AS saved_metrics FROM testbed.metrics
- WHERE {run_key};
+ WHERE {metric_run_key};
 SELECT count(*) AS saved_dropped FROM testbed.metrics_dropped
  WHERE skill_name = {sql_text(payload['skill_name'])}
    AND skill_version = {sql_text(payload['skill_version'])}

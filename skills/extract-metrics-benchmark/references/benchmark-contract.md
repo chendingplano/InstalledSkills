@@ -122,7 +122,14 @@ For non-English sources add applicable `metric_name_en`, `metric_subject_en`, `m
 
 Committed schema: `ChenWeb/project_migrations/20261006000001_create_testbed_metrics.sql`, plus `20261006000002_add_skill_version_to_testbed_metrics.sql` (`skill_version TEXT NOT NULL`; rows saved before versioning were backfilled as `1.0.0`), plus `20261006000003_add_skill_and_model_name_to_testbed_metrics.sql` (`skill_name`, `model_name`, both `TEXT NOT NULL`; run `22aa157c` backfilled as `extract-metrics-benchmark` / `gpt-6.1-sol`), `20261006000004_timestamp_run_id_for_testbed_metrics.sql` (`yyyymmdd_hhmmss` run IDs), `20261007000001_allow_metric_with_no_value_in_testbed_metrics.sql` (`value_class` `metric-with-no-value`) and `20261007000002_metric_benchmark_runs_for_testbed_metrics.sql` (`testbed.metric_benchmark_runs`, one row per run, primary key = the run key; `testbed.metrics` references it; runs saved earlier were moved there and their rows reduced to schema `3` `ext_info`). Startup runs project migrations through `server/cmd/config/config.go`. Use the Goose project track, `ChenWeb/project_migrations`, and existing `project_db_migration` version table. Follow db-migration skill guidance for credentials/execution; never test rollback against valuable benchmark data. The schema excludes production search indexes/triggers/category side effects.
 
-`20261010000002_add_run_id_to_testbed_metrics.sql` adds `testbed.metrics.run_id` as a stored generated `TEXT NOT NULL` column equal to `benchmark_run_id`. Existing rows receive it automatically, and future saves continue writing only `benchmark_run_id`; do not insert or update `run_id` directly. The full run identity still includes `skill_name`, `skill_version` and `model_name` because timestamp IDs alone need not be unique across those fields.
+`20261010000002_add_run_id_to_testbed_metrics.sql` originally added a generated alias.
+`20261010000004_keep_only_run_id_in_testbed_metrics.sql` replaces that alias with
+the original stored column renamed to `run_id TEXT NOT NULL`, preserving values,
+uniqueness, format checks, indexes and the foreign key. `testbed.metrics` no longer
+has `benchmark_run_id`. The helper writes `run_id` using the payload's unchanged
+`benchmark_run_id`; the audit table also retains `benchmark_run_id`. Full run
+identity includes `skill_name`, `skill_version` and `model_name` because timestamp
+IDs alone need not be unique across those fields.
 
 `20261010000003_create_testbed_metrics_dropped.sql` creates dropped-candidate storage
 and backfills all excluded and duplicate candidates from existing run audit ledgers.
@@ -160,7 +167,7 @@ psql -X -A -t -v ON_ERROR_STOP=1 -v record_id=123 -v run_id='<yyyymmdd_hhmmss>' 
   -o /tmp/metrics-123-readback.json <<'SQL'
 SELECT COALESCE(jsonb_agg(to_jsonb(m) ORDER BY m.metric_id), '[]'::jsonb)
 FROM testbed.metrics m
-WHERE input_record_id = :'record_id'::bigint AND benchmark_run_id = :'run_id'
+WHERE input_record_id = :'record_id'::bigint AND run_id = :'run_id'
   AND skill_name = 'extract-metrics-benchmark' AND skill_version = :'skill_version'
   AND model_name = :'model_name';
 SQL

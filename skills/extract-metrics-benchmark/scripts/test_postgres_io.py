@@ -81,6 +81,7 @@ class PostgresIOTests(unittest.TestCase):
                 self.assertEqual(saved[0]['skill_name'], fixture.io.skill_name())
                 self.assertEqual(saved[0]['model_name'], 'test-model')
                 self.assertEqual(saved[0]['run_id'], fixture.payload['benchmark_run_id'])
+                self.assertNotIn('benchmark_run_id', saved[0])
                 saved_run = json.loads(sql('SELECT to_jsonb(r) FROM testbed.metric_benchmark_runs r;'))
                 self.assertEqual(saved_run['candidates'], fixture.payload['candidates'])
                 self.assertEqual(saved_run['coverage'], fixture.payload['coverage'])
@@ -96,7 +97,7 @@ class PostgresIOTests(unittest.TestCase):
                 sql(save, succeeds=False)
                 sql(fixture.io.save_sql(dict(record, staging_filename='wrong.pdf'),
                                         fixture.payload, rows), succeeds=False)
-                broken = [dict(rows[0], benchmark_run_id='not-a-timestamp'),
+                broken = [dict(rows[0], run_id='not-a-timestamp'),
                           dict(rows[0], metric_id='broken', source_line_spans={})]
                 sql(fixture.io.save_sql(record, fixture.payload, broken), succeeds=False)
                 self.assertEqual(sql('SELECT count(*) FROM testbed.metrics;'), '1')
@@ -105,7 +106,7 @@ class PostgresIOTests(unittest.TestCase):
                 # A new run key appends a new snapshot; the first run is untouched.
                 rerun = dict(fixture.payload, benchmark_run_id='20000101_000000')
                 sql(fixture.io.save_sql(record, rerun, fixture.io.validate(record, rerun)))
-                self.assertEqual(sql('SELECT count(DISTINCT benchmark_run_id) FROM testbed.metrics;'), '2')
+                self.assertEqual(sql('SELECT count(DISTINCT run_id) FROM testbed.metrics;'), '2')
                 self.assertEqual(sql('SELECT count(*) FROM testbed.metric_benchmark_runs;'), '2')
                 self.assertEqual(sql('SELECT count(DISTINCT run_id) FROM testbed.metrics_dropped;'), '2')
                 # A second model with the same timestamp remains a separate run.
@@ -113,13 +114,22 @@ class PostgresIOTests(unittest.TestCase):
                 sql(fixture.io.save_sql(record, other_model, fixture.io.validate(record, other_model)))
                 self.assertEqual(sql("SELECT count(*) FROM testbed.metrics_dropped WHERE model_name='other-model';"), '2')
                 # Backfill existing audit ledgers after rollback/reapply.
-                drops = migrations[-1]
+                drops = next(m for m in migrations if 'CREATE TABLE IF NOT EXISTS testbed.metrics_dropped' in m[0])
                 sql('BEGIN;\n' + drops[1] + '\nCOMMIT;')
                 sql('BEGIN;\n' + drops[0] + '\nCOMMIT;')
                 self.assertEqual(sql('SELECT count(*) FROM testbed.metrics_dropped;'), '6')
                 # Remove the extra model before the existing two-run audit checks.
                 sql("DELETE FROM testbed.metrics_dropped WHERE model_name='other-model'; DELETE FROM testbed.metrics WHERE model_name='other-model'; DELETE FROM testbed.metric_benchmark_runs WHERE model_name='other-model';")
-                self.assertEqual(sql('SELECT count(*) FROM testbed.metrics WHERE run_id IS DISTINCT FROM benchmark_run_id;'), '0')
+                self.assertEqual(sql('SELECT count(*) FROM testbed.metrics m JOIN testbed.metric_benchmark_runs r ON (m.skill_name,m.skill_version,m.model_name,m.run_id)=(r.skill_name,r.skill_version,r.model_name,r.benchmark_run_id);'), '2')
+                # Canonical-column rollback/reapply preserves row identities and run keys.
+                canonical = migrations[-1]
+                before = sql('SELECT jsonb_agg(to_jsonb(m) ORDER BY id) FROM testbed.metrics m;')
+                sql('BEGIN;\n' + canonical[1] + '\nCOMMIT;')
+                self.assertEqual(sql('SELECT count(*) FROM testbed.metrics WHERE run_id=benchmark_run_id;'), '2')
+                sql('BEGIN;\n' + canonical[0] + '\nCOMMIT;')
+                self.assertEqual(sql('SELECT jsonb_agg(to_jsonb(m) ORDER BY id) FROM testbed.metrics m;'), before)
+                # Older migrations operate on their original schema names.
+                sql('BEGIN;\n' + canonical[1] + '\nCOMMIT;')
                 # Dropping/re-adding the alias preserves runs and populates existing rows.
                 alias = next(m for m in migrations if 'GENERATED ALWAYS AS (benchmark_run_id)' in m[0])
                 sql('BEGIN;\n' + alias[1] + '\nCOMMIT;')
@@ -136,6 +146,7 @@ class PostgresIOTests(unittest.TestCase):
                 sql('BEGIN;\n' + drops[0] + '\nCOMMIT;')
                 self.assertEqual(sql('SELECT count(*) FROM testbed.metric_benchmark_runs;'), '2')
                 self.assertEqual(sql("SELECT count(*) FROM testbed.metrics WHERE ext_info ? 'candidates';"), '0')
+                sql('BEGIN;\n' + canonical[0] + '\nCOMMIT;')
                 # A run with only excluded candidates persists its audit and drops.
                 empty = dict(fixture.payload, benchmark_run_id='20000102_000000', metrics=[],
                              candidates=[fixture.payload['candidates'][1]])

@@ -223,6 +223,15 @@ under 1.0.0, about 64 hold up under the review).
 
 ## Tooling changes
 
+### 2026-10-10 — one stored run ID column in gold metrics
+
+`testbed.metrics.run_id` is now the writable run ID column; the duplicate
+`benchmark_run_id` column is removed by a reversible project migration. Existing
+run values and constraints are preserved. The helper maps the unchanged payload
+field `benchmark_run_id` to `run_id` when saving gold rows. Run audits and saved
+scoring artifacts retain their field names. Benchmark options and scoring readers
+now query the canonical column. No rules versions change.
+
 ### 2026-10-10 — persist benchmark dropped candidates
 
 Save excluded and duplicate candidates to `testbed.metrics_dropped` with the same

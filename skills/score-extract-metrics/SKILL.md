@@ -11,6 +11,10 @@ gold metric found with every checked field right and nothing extra; 1 = total fa
 gold metrics come from the `extract-metrics-benchmark` skill (`testbed.metrics`). The
 predictions are the document's current rows in `kb.metrics`.
 
+Gold rows store their run ID in `testbed.metrics.run_id`. The export helper maps
+it to the existing `benchmark_run_id` field in scoring artifacts and joins run
+audits on `m.run_id = r.benchmark_run_id` plus skill name, version and model.
+
 The work is split on purpose. **You** decide which predicted row states the same assertion as
 which gold row. **The script** does every check that can be computed, and the arithmetic, so the
 number can be reproduced from the saved files. Never compute or adjust the score by hand.

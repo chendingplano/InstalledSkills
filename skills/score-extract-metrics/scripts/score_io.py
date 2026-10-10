@@ -122,7 +122,7 @@ def fetch_input(record_id):
 
 def fetch_gold_runs(record_id):
     return query_json(f'''SELECT COALESCE(json_agg(r ORDER BY r.benchmark_run_id), '[]') FROM (
- SELECT skill_version, model_name, benchmark_run_id, count(*) AS rows,
+ SELECT skill_version, model_name, run_id AS benchmark_run_id, count(*) AS rows,
         min(source_sha256) AS source_sha256
  FROM testbed.metrics WHERE input_record_id = {record_id} AND skill_name = '{GOLD_SKILL}'
  GROUP BY 1, 2, 3) r;''')
@@ -130,11 +130,15 @@ def fetch_gold_runs(record_id):
 
 def fetch_gold_rows(record_id, run):
     """Gold rows of one run; each carries the run's candidate ledger from testbed.metric_benchmark_runs."""
-    key = ' AND '.join(f"m.{k} = {bio.sql_text(run[k])}" for k in ('skill_version', 'model_name', 'benchmark_run_id'))
+    key = ' AND '.join(f"m.{column} = {bio.sql_text(run[key])}" for column, key in
+                       (('skill_version', 'skill_version'), ('model_name', 'model_name'),
+                        ('run_id', 'benchmark_run_id')))
     cols = ', '.join(f'm.{c}' for c in METRIC_FIELDS)
     return query_json(f'''SELECT COALESCE(json_agg(row_to_json(g) ORDER BY g.id), '[]') FROM (
  SELECT m.id, {cols}, r.candidates FROM testbed.metrics m
- JOIN testbed.metric_benchmark_runs r USING (skill_name, skill_version, model_name, benchmark_run_id)
+ JOIN testbed.metric_benchmark_runs r
+   ON (m.skill_name, m.skill_version, m.model_name, m.run_id)
+    = (r.skill_name, r.skill_version, r.model_name, r.benchmark_run_id)
  WHERE m.input_record_id = {record_id} AND m.skill_name = '{GOLD_SKILL}' AND {key}) g;''')
 
 
