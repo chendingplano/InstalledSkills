@@ -102,7 +102,7 @@ references for document 753."*
 |---|---|
 | Build an answer key with the newest rules | "Build the gold references for document 753." |
 | Use a specific rules version | "Build the gold references for document 753 using version 1.0.0." |
-| Score the automatic extraction | "Score extract_references on document 753 against gold run 20261011_143005." |
+| Score the automatic extraction (`score-extract-references` skill) | "Use $score-extract-references for document 753." |
 | Review a saved result | "Show me gold reference 753_gref_12 and check whether its labels are right." |
 
 ## 5. Available versions

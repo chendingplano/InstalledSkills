@@ -66,4 +66,6 @@ Report document ID, source path/hash, run ID, saved count (by `ref_form`, intern
 
 ## Scoring `extract_references`
 
+Use the `score-extract-references` skill: it exports the gold run and the predictions, you write the pairs, and its script computes a reproducible 1–100 score with the measures below. What follows is the scoring contract that skill implements.
+
 Select one explicit benchmark run; never concatenate snapshots. Compare it with the record's `kb.ref_mentions` rows. Match a predicted mention to a gold reference by overlapping `source_line_spans` and the same target (identity key, or for internal and indirect references the same locator and `cited_raw`), one-to-one. Report detection precision and recall separately for listed entries, external in-text references and internal references, then label accuracy on the matched pairs: `target_type`, `target_subtype`, `mechanism`, `relationships` (set overlap), `target_scope`, `target_content`, `in_requirement`, `normativity`, `list_mismatch`, identifiers, and the named quantity on `criterion` pairs. The `criterion`/`criteria_set` rows matter most: they are what the metric resolver takes. Compare the run's `document_identifier` with the identifier the processor attached (`kb_input` identifier of the record). Report the skill version and run ID with every score.

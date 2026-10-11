@@ -33,6 +33,11 @@ Derived from the reference model of `extract_references` (devdoc 2026101002 §3,
 
 ## Tooling
 
+### 2026-10-14 — scoring skill
+
+- `SKILL.md` "Scoring `extract_references`" points to the new `score-extract-references` skill,
+  which implements that contract (`scripts/score_io.py`). No rules version change.
+
 ### 2026-10-11 — first release
 
 - `SKILL.md`, `references/benchmark-contract.md`, `USER_MANUAL.md`, `agents/openai.yaml`.
