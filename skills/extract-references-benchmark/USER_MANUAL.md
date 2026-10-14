@@ -112,6 +112,7 @@ The list of record is `rules/versions.json` in the skill directory.
 | Version | Rules file | Released | Notes |
 |---|---|---|---|
 | 1.0.0 | `rules/1.0.0.md` | 2026-10-11 | First release. Follows the reference model of `extract_references` (devdoc 2026101002). Counts citations in the text, reference-list entries, pointers to other parts of the document, and unnamed pointers to one specific document ("the manufacturer's instructions"). Leaves out the table of contents, the document's own number, who drafted it, vague "relevant regulations", and people or organizations that are only part of the content. Pointers to this document's own tables never count as borrowing a limit. |
+| 2.0.0 | `rules/2.0.0.md` | 2026-10-14 | Same as 1.0.0, except that an instruction to follow the performer's own rules (for example "strictly follow the safe operating procedures") no longer counts as a pointer to a specific document. Default version. |
 
 If you don't name a version, the newest released version is used.
 
@@ -138,3 +139,4 @@ If you don't name a version, the newest released version is used.
 | Version | Timestamp | Author | Reason | Summary |
 |---|---|---|---|---|
 | 1.0 | 2026-10-11T12:00:00-05:00 | Not specified (drafted by Claude Code) | New skill | First edition: purpose, key ideas, use in Claude Code, Codex and other assistants, rules version 1.0.0, limits. |
+| 1.1 | 2026-10-14T00:00:00-05:00 | Not specified (drafted by Claude Code) | Rules version | Added rules version 2.0.0 (performer's own rules are excluded, not indirect references). |

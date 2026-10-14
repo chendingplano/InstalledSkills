@@ -5,6 +5,12 @@
       "sha256": "48e6f89667f91667352c3a3524abcd922763b961935423d1ea325fcffbff9b46",
       "released": "2026-10-11",
       "notes": "First release: reference model of extract_references (devdoc 2026101002 §3, openspec extract-references-processor, prompt-extract-references-v1)."
+    },
+    "2.0.0": {
+      "rules": "2.0.0.md",
+      "sha256": "f4ab603dc294b41074cbc761add41b9d2e78816c5649d619dbb9f35f009114ef",
+      "released": "2026-10-14",
+      "notes": "Performer's own rules (e.g. 严格执行安全操作规程) are X4, not A4; found reviewing gold ref 416_gref_30 of 1.0.0 run 20261011_095742."
     }
   }
 }

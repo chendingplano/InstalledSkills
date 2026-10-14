@@ -13,9 +13,18 @@ Two kinds of change are tracked separately:
 | Version | Rules file | Notes |
 |---|---|---|
 | 1.0.0 | `rules/1.0.0.md` | First release. See below. |
+| 2.0.0 | `rules/2.0.0.md` | Performer's own rules are X4, not A4. See below. |
 
-Default when no version is named: the newest released version (currently 1.0.0); pre-releases are
+Default when no version is named: the newest released version (currently 2.0.0); pre-releases are
 never the default.
+
+### 2.0.0 — 2026-10-14
+
+Outcome change (major): an obligation to follow the performer's own rules ("运行管理人员…应严格执行安全操作规程") is now
+excluded as X4 and no longer accepted as an A4 indirect reference. A4 also now states that the target must exist
+independently of the document and be fixed by text or context. Trigger: expert review of gold ref `416_gref_30`
+(run 20261011_095742, 1.0.0), the only A4 row in that run. Existing 1.0.0 runs are immutable; record 416 needs a
+2.0.0 run to drop that row (47 → 46 expected).
 
 ### 1.0.0 — 2026-10-11
 
