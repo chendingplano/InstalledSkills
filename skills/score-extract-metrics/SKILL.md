@@ -52,7 +52,10 @@ source line with each gold row, ranked by how many field checks they pass; a hin
 A **pair** means both rows state the same assertion: the same measured property of the same
 object, from the same clause. Paraphrased names and broader or narrower subject wording are fine
 ("肥料" vs "机器成肥产出的肥料"). Different values do not prevent a pair, because the value check
-grades them. But a row from another table row or clause is a different assertion. Pairs are
+grades them. But a row from another table row or clause is a different assertion, and so is a row
+for another condition of the same property (幼儿 vs 成年人, a simulation device vs a simulant object):
+pair each predicted row with the gold row of its condition, and let the condition check grade a
+wrong or missing condition only when no gold row of the right condition is left. Pairs are
 one-to-one. If the extractor merged two gold assertions into one row, pair it with the closer one
 (on a tie, the one stated first in the source) and list the other as missed, with a note.
 
@@ -84,11 +87,18 @@ The checks already normalize notation: full-width/half-width forms (`0～4` = `0
 (`20.0` = `20`). These need no override.
 
 **Overrides** correct a field check that the normalized comparison still got wrong. They are allowed only for
-`value`, `unit` and `lines`, and each needs a reason. Use one only when both sides state the same
+`value`, `unit`, `lines` and `condition`, and each needs a reason. Use one only when both sides state the same
 thing in different notation: a bare count unit and its per-object form (个 / 个/户), a unit
 conversion, or a value given in words that is unambiguous with its unit ("每日" with 次/日 = 1).
 Do not use one because a mistake looks minor. `range_type` (the comparator) and `kind` are never
 overridden. A test setting stored as a requirement is a real kind error.
+
+The `condition` check compares the qualifier values: it splits each condition on `；`/`;`, ignores
+the `<kind>：` labels, whitespace and order, and passes when both sides hold the same set (both
+empty also passes). Override it only when both sides state the same qualifiers in other words
+(`幼儿` vs `3 周岁～6 周岁幼儿`, a label the gold leaves out). A missing qualifier, an extra one
+(a repeated subject or property, or a condition the source does not state) or a different one is a
+real error.
 
 ## 3. Score
 
@@ -100,7 +110,10 @@ The script writes `score.json` and `report.md` in that directory (next to the so
 under `extract-metrics-scores/`, outside Git). Fix any refusal in `matches.json` and run it again.
 
 How the score is computed: each pair earns credit, the weighted share of the checks it passes
-(value 0.30, comparator 0.20, statement kind 0.20, unit 0.15, overlapping source lines 0.15).
+(value 0.25, comparator 0.15, statement kind 0.15, unit 0.15, overlapping source lines 0.10,
+condition 0.20). This is scoring version 2 (2026-10-16), recorded in `score.json` and the report;
+version 1 had no condition check (value 0.30, comparator 0.20, kind 0.20, unit 0.15, lines 0.15), so
+never compare a version-1 score with a version-2 score.
 Missed gold rows and false positives earn nothing. Soft precision = credit / predicted rows.
 Soft recall = credit / gold rows. **Score = round(100 × soft F1)**, clamped to 1–100. The report
 also gives a score without test-method settings (`test_parameter` gold rows), because production
@@ -114,7 +127,9 @@ matched-row precision and recall, and the without-test-parameters score; the mai
 patterns (which fields fail most, the false-positive causes, what was missed); any warnings; and
 the `report.md` path. Mention any dropped row the report flags as on the same lines as a missed gold
 row: `extract_metrics` set it aside (`kb.metrics_dropped`, not scored), so it may be a wrong drop.
-When comparing scores, compare only scores made against the same gold run.
+When comparing scores, compare only scores made against the same gold run and the same scoring
+version. A gold run under rules older than 6.4.0 may write conditions in another shape or leave
+the test method out of them; say so when the condition check fails often against such a run.
 
 ## Common mistakes
 

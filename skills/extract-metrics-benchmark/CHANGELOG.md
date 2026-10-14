@@ -24,9 +24,90 @@ Two kinds of change are tracked separately:
 | 5.0.0 | `rules/5.0.0.md` | Sizing duties (X17) are metrics with no value too: A4 covers values to be declared, agreed, or set/sized by another factor. X17 retired. See below. |
 | 5.1.0 | `rules/5.1.0.md` | Typical values of a metric with no value must be a numeric range with unit; "no typical value" only with a reason. See below. |
 | 6.0.0 | `rules/6.0.0.md` | A metric has at least a value: A4 and A5 retired, value-less candidates are X18; definitions anywhere are X3; counts of the document's own parts are X4; provisions with no named quantity are X7. See below. |
+| 6.1.0 | `rules/6.1.0.md` | A symmetric `±x` tolerance keeps its sign in `metric_value` (`±0.2`, not `0.2`). See below. |
+| 6.2.0 | `rules/6.2.0.md` | The same metric stated in several places is one row listing all its lines (not D1 duplicates); a value stated in prose or a table is not an X13 formula operand. See below. |
+| 6.3.0 | `rules/6.3.0.md` | Data dictionaries: a data element's data format (one row, the whole format) and allowed occurrences are A1, not X3 definitions. See below. |
+| 6.4.0 | `rules/6.4.0.md` | Conditions read broadly (test method or apparatus, environment, population, location, load), object-only subject, `<kind>：<value>` shape. See below. |
 
-Default when no version is named: the newest released version (currently 6.0.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
+Default when no version is named: the newest released version (currently 6.3.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
 because rows were already saved under those labels.
+
+### 6.4.0 — 2026-10-16
+
+Found when scoring `extract_metrics` on record 371 (GB/T 44700—2024) against the 6.3.0 run
+`20261015_163536` (claude-sonnet-5-5). Clauses 6.5.14.1 and 6.5.14.2 state the same test settings,
+once with a 运动模拟装置 and once with a 模拟物; the gold merged each pair into one row covering both
+lines. The user ruled on 2026-10-16 that the test method is a condition, so they are two metrics.
+Minor: 6.3.0 already kept different conditions apart; 6.4.0 says what a condition is.
+
+- **Conditions (§3).** `condition` holds what limits when, where, for whom or how the value holds:
+  applicability (population, category, size class, variant), environment and operating state, test
+  method or apparatus, location or body site, load, input level or time point.
+- **Subject vs condition.** `metric_subject` names only the object; qualifiers go to `condition`.
+- **Shape.** `<kind>：<value>` qualifiers joined by `；` (English: `<kind>: <value>` joined by `; `).
+- **Occurrences / X12.** The same settings stated under different methods are separate metrics; a
+  method or apparatus that qualifies a value is its condition, not an excluded row.
+
+`extract_metrics` uses the same definition from candidates prompt v16 / enrich prompt v13 (ChenWeb
+openspec change `extract-metrics-conditions`), and `score-extract-metrics` checks `condition` as a
+weighted field.
+
+### 6.3.0 — 2026-10-15
+
+Found in the 6.2.0 run `20261015_043344` (claude-sonnet-5-5) of record 376 (GB/T 40423—2021), which
+kept 6 gold rows from a 322-element data-element catalogue (Table 4). The run excluded every data
+format and allowed occurrence count as X3 ("attribute definitions of a data dictionary"), after the
+annotator recommended that reading and the user accepted it; on review the user ruled it wrong.
+Minor: correctly read, 6.2.0's gate already accepts these rows; 6.3.0 makes it explicit.
+
+- **Data dictionaries (§2.5).** The data element is the object. Its data format with a number
+  ("an..70", "n4..5,1") is **one A1 row** holding the whole format (fixed length `exact`, maximum
+  `upper_bound`, minimum and maximum `range`; tag `data_format`), and its allowed occurrences ("1",
+  "0..1", "1..n") one A1 row (tag `occurrence_count`). Notation clauses, code lists, enumerated value
+  domains and date patterns (YYYYMMDD) stay X3; GB/T value domains X16; the element's measured value
+  with no number X18; obligation M/O/C makes no row; the document's identifier scheme is X14.
+- **Misprints** that the document's own notation resolves (`nl` for `n1`, `n3..4.1` for `n3..4,1`) are
+  stored as the notation reads them, with the printed text in `evidence` and `annotation_notes`.
+- **Audits (§4)** check one format and one occurrence row per element.
+- No tooling change: `validate` already gates by version, and 6.3.0 inherits every 6.x check.
+
+### 6.2.0 — 2026-10-15
+
+Found by comparing the 6.0.0 (claude-opus-5-5, run `20261010_055329`) and 6.1.0 (claude-sonnet-5-5, run
+`20261014_162055`) gold sets of record 753. Minor: which assertions are metrics is unchanged except the X13 fix.
+
+- **Occurrences (§3).** The same metric (subject, property, value, unit, comparator, condition, class)
+  stated in several places is **one row** whose `source_line_spans` list every occurrence line, with the
+  table rows unioned and one evidence entry per line. The ledger keeps one `accepted` candidate per
+  occurrence, all linking that row. Replaces "preserve independently stated occurrences for mention-level
+  benchmarking", which left later occurrences as D1 rows with no gold evidence (753: 3.28 and 11.3 for the
+  5.4 nominal fan power). Different subject, property, value, unit, comparator or condition stays a
+  separate row (753: 名义风量 and 名义风机功率 both at 1013.25 hPa). **D1** is now only the same occurrence
+  detected twice in overlapping windows, or a pointer that states no value.
+- **X13 narrowed.** A formula operand is a symbol or constant that exists only inside the formula. A
+  named quantity that a sentence, note or table states with its own value is a metric even when a formula
+  encodes it (753 11.1.2 "每增加 1 hPa，排热量增加约 0.065 %" versus the coefficient 6.5×10⁻⁴ of formula (11),
+  which 6.0.0 excluded as X13). The formula itself stays X18.
+- **Consistency audit (§4)** checks both points.
+- **Tooling:** `validate` (rules ≥ 6.2.0) refuses two rows with the same name, subject, unit, value, range
+  type, class and condition (the spans no longer tell them apart), and refuses an `accepted` candidate whose
+  lines are not among its metric's `source_line_spans`. Earlier versions are unaffected.
+- Runs saved under 6.1.0 and earlier are not changed. Scoring: a merged row has several line spans, so
+  match on any shared line (not on the first span).
+
+### 6.1.0 — 2026-10-14
+
+Representation fix, found on `753_gold_29` (`±0.2 K` stored as `0.2`). Rules 6.0.0 said both "`metric_value`
+is the bare number" and "keep ± tolerances in source-faithful text", and the bare-number rule won:
+48 other ± rows of run `20261010_055329` lost their sign too, while `20±5` kept it.
+
+- **Rule:** a symmetric tolerance, uncertainty or permitted deviation written `±x` is stored as
+  `metric_value = "±x"` with `value_range_type = upper_bound` (bound on the magnitude). `a±b` stays `range`
+  as written; asymmetric tolerances are not stored this way. Which assertions are metrics is unchanged.
+- **Tooling:** `validate` (rules ≥ 6.1.0) refuses a non-range row whose `threshold_or_target` states `±<metric_value>`
+  while `metric_value` has no ±. Earlier versions are unaffected.
+- Runs saved under 6.0.0 and earlier are not changed. `score-extract-metrics` does not strip `±`, so score a
+  6.1.0 gold against predictions that also keep it.
 
 ### 6.0.0 — 2026-10-09
 

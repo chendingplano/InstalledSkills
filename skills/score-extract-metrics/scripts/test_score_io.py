@@ -77,8 +77,20 @@ class FieldCheckTests(unittest.TestCase):
         self.assertIsNone(io.field_checks(test, row('p'), lines_comparable=False)['lines'])
 
     def test_disabled_check_renormalizes(self):
-        credit = io.pair_credit({'value': True, 'range_type': True, 'kind': False, 'unit': True, 'lines': None})
-        self.assertAlmostEqual(credit, 0.65 / 0.85)
+        credit = io.pair_credit({'value': True, 'range_type': True, 'kind': False, 'unit': True, 'lines': None,
+                                 'condition': True})
+        self.assertAlmostEqual(credit, 0.75 / 0.90)
+
+    def test_condition_check(self):
+        g = row('g', condition='适用人群：幼儿；称量≤50 kg')
+        self.assertTrue(io.condition_ok(g, row('p', condition='适用人群: 幼儿; 称量≤50 kg')))
+        self.assertTrue(io.condition_ok(g, row('p', condition='称量≤50kg；人群：幼儿')))  # order and label
+        self.assertFalse(io.condition_ok(g, row('p', condition='适用人群：幼儿')))         # missing qualifier
+        self.assertFalse(io.condition_ok(g, row('p')))                                  # empty vs set
+        self.assertTrue(io.condition_ok(row('g'), row('p', condition='')))              # both empty
+        checks = io.field_checks(g, row('p', condition='适用人群：成年人；称量≤50 kg'))
+        self.assertFalse(checks['condition'])
+        self.assertAlmostEqual(io.pair_credit(checks), 0.80)
 
 
 class ScoreTests(unittest.TestCase):
@@ -94,7 +106,7 @@ class ScoreTests(unittest.TestCase):
 
     def test_score_formula(self):
         result = io.score(self.inp, self.matches)
-        credit = 1.0 + 0.7  # g2/p2: value wrong
+        credit = 1.0 + 0.75  # g2/p2: value wrong
         p = r = credit / 3
         self.assertAlmostEqual(result['main']['soft_f1'], 2 * p * r / (p + r))
         self.assertEqual(result['score'], round(100 * credit / 3))

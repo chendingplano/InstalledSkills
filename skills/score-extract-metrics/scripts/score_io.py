@@ -28,9 +28,13 @@ STAND_IN_VERSION = '2.1.0'
 STAND_IN_DROPPED_KINDS = {'inspection_requirement', 'delegated_requirement'}
 # Field checks on a matched pair and their weights (sum 1.0). A check that cannot be made
 # (lines, when the source changed since the gold run) is left out and the rest renormalized.
-WEIGHTS = {'value': 0.30, 'range_type': 0.20, 'kind': 0.20, 'unit': 0.15, 'lines': 0.15}
-# Only notation can differ for these; range_type and kind are enums, a mismatch is always real.
-OVERRIDABLE = {'value', 'unit', 'lines'}
+# Scoring version 2 (2026-10-16) adds the condition check; scores of version 1 (no condition:
+# value .30, range_type .20, kind .20, unit .15, lines .15) are not comparable with version 2.
+SCORING_VERSION = 2
+WEIGHTS = {'value': 0.25, 'range_type': 0.15, 'kind': 0.15, 'unit': 0.15, 'lines': 0.10, 'condition': 0.20}
+# Only notation or wording can differ for these; range_type and kind are enums, a mismatch is
+# always real.
+OVERRIDABLE = {'value', 'unit', 'lines', 'condition'}
 FP_CAUSES = {'gold_excluded', 'duplicate', 'not_in_gold', 'invalid'}
 COMPARATORS = re.compile(r'[<>≤≥＜＞≦≧=]')
 METRIC_FIELDS = '''metric_id metric_name metric_subject metric_desc metric_unit metric_value
@@ -287,6 +291,21 @@ def unit_ok(gold, pred):
     return norm(gold.get('metric_unit')).replace(' ', '') == norm(pred.get('metric_unit')).replace(' ', '')
 
 
+def condition_parts(text):
+    """A condition as a set of qualifier values: labels (`适用人群：`) and whitespace ignored."""
+    parts = set()
+    for part in re.split(r'[;；]', norm(text).replace(' ', '')):
+        if not part:
+            continue
+        label, sep, value = part.partition(':')  # NFKC folds the full-width colon
+        parts.add(value if sep and value else part)
+    return parts
+
+
+def condition_ok(gold, pred):
+    return condition_parts(gold.get('condition')) == condition_parts(pred.get('condition'))
+
+
 def kind_of(row):
     return bio.statement_kind({'value_class': row.get('value_class') or '',
                                'value_range_type': row.get('value_range_type') or '',
@@ -299,6 +318,7 @@ def field_checks(gold, pred, lines_comparable=True):
             'range_type': norm(gold.get('value_range_type')) == norm(pred.get('value_range_type')),
             'kind': gold['kind'] == pred['kind'],
             'unit': unit_ok(gold, pred),
+            'condition': condition_ok(gold, pred),
             'lines': bool(line_set(gold.get('source_line_spans')) & line_set(pred.get('source_line_spans')))
                      if lines_comparable else None}
 
@@ -472,7 +492,8 @@ def score(inp, matches):
         vals = [p['checks'][f] for p in pairs if p['checks'][f] is not None]
         field_acc[f] = (sum(vals) / len(vals)) if vals else None
     return {'score': main['score'], 'main': main, 'without_test_parameters': without_tests,
-            'field_accuracy': field_acc, 'weights': WEIGHTS, 'pairs': pairs,
+            'field_accuracy': field_acc, 'weights': WEIGHTS, 'scoring_version': SCORING_VERSION,
+            'pairs': pairs,
             'missed': matches.get('missed', []), 'false_positives': matches.get('false_positives', []),
             'overrides': matches.get('overrides', [])}
 
@@ -494,7 +515,9 @@ def report(inp, result, scorer_model):
              f'| Extraction | {"; ".join(" / ".join(x for x in t if x) for t in ext["prompts_models_events"])} '
              f'(saved {ext["created_at"][1]}, log run {ext["log_run_id"]}) |',
              f'| Source lines comparable | {"yes" if src["lines_comparable"] else "no"} |',
-             f'| Scored by | {scorer_model} |', '',
+             f'| Scored by | {scorer_model} |',
+             f'| Scoring version | {result.get("scoring_version", 1)} (weights: '
+             f'{", ".join(f"{f} {w}" for f, w in result["weights"].items())}) |', '',
              '## Components', '',
              '| | Gold | Predicted | Matched | Soft precision | Soft recall | Soft F1 | Matched-row precision | Matched-row recall | Score |',
              '|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|']
@@ -516,6 +539,8 @@ def report(inp, result, scorer_model):
             g, pr = gold[p['gold']], pred[p['pred']]
             detail = f'gold {g["value_range_type"]} {g["metric_value"]} {g["metric_unit"]} / ' \
                      f'pred {pr["value_range_type"]} {pr["metric_value"]} {pr["metric_unit"]}'
+            if p['checks'].get('condition') is False:
+                detail += f'; condition gold "{g.get("condition") or ""}" / pred "{pr.get("condition") or ""}"'
             lines.append(f'| {p["gold"]} | {p["pred"]} | {g["metric_name"]} ({detail}) | {failed} | '
                          f'{p["credit"]:.2f} | {p.get("note", "")} |')
     lines += ['', f'## Missed gold rows ({len(result["missed"])})', '']

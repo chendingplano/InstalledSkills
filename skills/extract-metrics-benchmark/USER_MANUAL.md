@@ -137,8 +137,12 @@ date.
 | 5.0.0 | `rules/5.0.0.md` | 2026-10-07 | Consistent with 4.1.0: a rule that only says a quantity should be **sized to suit** something else ("size the composting room's chamber volume for the daily amount of waste") also names a real metric without a value, so it counts again, as a metric with no value with its typical values. 4.0.0 had dropped it as a design requirement. For document 416 this gives 33 gold metrics. |
 | 5.1.0 | `rules/5.1.0.md` | 2026-10-07 | Same metrics as 5.0.0. The description of a metric with no value must now give its typical values as a rough number range with a unit (for example "about 30–80 kWh/t, depending on the machine"), not "no reliable typical value". Saying there is no typical value is allowed only with a reason why no range can exist. |
 | 6.0.0 | `rules/6.0.0.md` | 2026-10-09 | **A metric has at least a value.** Anything the document names without giving a value is no longer a metric: a value to be stated by the supplier, agreed or sized later ("the equipment shall state its energy consumption"), a formula or a definition of how something is calculated, and a list of things to record. So are definitions of terms wherever they appear, counts of the document's own parts ("use two test methods", "divided into four categories"), and duties to provide equipment or staff that name no number. Numbers inside definitions still count. A table that gives one value per condition gives one metric per condition. This matches the automatic extraction since 2026-10-09, which sets such rows aside. For document 416, 比能耗, 发酵周期 and 单室体积 drop out. |
+| 6.1.0 | `rules/6.1.0.md` | 2026-10-14 | **± tolerances keep their sign.** Same as 6.0.0, except a tolerance written `±0.2 K` is stored with `metric_value = ±0.2` instead of `0.2`. |
+| 6.2.0 | `rules/6.2.0.md` | 2026-10-15 | **One metric, every place it is stated.** Same as 6.1.0, except a metric the document states in several places (a definition, the requirement, a later clause) is one gold row listing all those lines, not a row plus "duplicate" entries. A different subject or condition is still a separate row. Also, a number stated in a sentence or table is a metric even when a formula uses the same number (the 0.065 %/hPa pressure sensitivity of document 753). |
+| 6.3.0 | `rules/6.3.0.md` | 2026-10-15 | **Data dictionaries.** Same as 6.2.0, except that in a data-element catalogue each element's data format (for example `an..70` or `n4..5,1`, kept as one row) and its allowed number of occurrences are gold metrics. 6.2.0 runs treated them as definitions, so document 376 had only 6 gold metrics. |
+| 6.4.0 | `rules/6.4.0.md` | 2026-10-16 | **Conditions.** Same as 6.3.0, except the condition of a metric is read broadly: who or what it applies to (for example children vs adults), the environment, the test method or device used, the body site, the load. The object stays in the subject and the rest goes into the condition, written as labelled parts such as `适用人群：幼儿`. The same test settings stated once with a simulation device and once with a simulant object (document 371, 6.5.14.1 and 6.5.14.2) are now two metrics each. |
 
-**If you don't name a version, the newest one is used** (the highest version number; currently 6.0.0).
+**If you don't name a version, the newest one is used** (the highest version number; currently 6.4.0).
 Draft versions marked as pre-releases, such as `2.0.0-rc.1`, are used only when you name them. The
 assistant tells you which version it used.
 
@@ -221,6 +225,10 @@ instructions from this skill. Judge it as a human domain expert.
 
 | Version | Timestamp | Author | Reason | Summary |
 |---|---|---|---|---|
+| 1.15 | 2026-10-16T06:00:00-05:00 | Not specified (drafted by Claude Code) | Rules version 6.4.0 released | Added 6.4.0 to Available versions; it is now the default. |
+| 1.14 | 2026-10-15T14:00:00-05:00 | Not specified (drafted by Claude Code) | Rules version 6.3.0 released | Added 6.3.0 to Available versions; it is now the default. |
+| 1.13 | 2026-10-15T12:00:00-05:00 | Not specified (drafted by Claude Code) | Rules version 6.2.0 released | Added 6.2.0 to Available versions; it is now the default. |
+| 1.12 | 2026-10-14T12:00:00-05:00 | Not specified (drafted by Claude Code) | Rules version 6.1.0 released | Added 6.1.0 to Available versions; it is now the default. |
 | 1.11 | 2026-10-09T10:00:00-05:00 | Not specified (drafted by Claude Code) | Rules version 6.0.0 released | Added 6.0.0 to Available versions; it is now the default. |
 | 1.10 | 2026-10-07T13:45:00-05:00 | Not specified (drafted by Claude Code) | Rules version 5.1.0 released | Added 5.1.0 to Available versions; it is now the default. |
 | 1.9 | 2026-10-07T13:30:00-05:00 | Not specified (drafted by Claude Code) | Rules version 5.0.0 released | Added 5.0.0 to Available versions; it is now the default. |

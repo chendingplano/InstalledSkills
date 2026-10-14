@@ -71,6 +71,30 @@
       "sha256": "147a85f16476e916df72ec274b70c38e44ed177a8e2bb580417a89394e6902a7",
       "released": "2026-10-09",
       "notes": "A metric has at least a value: A4 and A5 retired, value-less named quantities, formulas and computation definitions are X18; definitions wherever they appear are X3; counts of the document's own parts are X4; provisions with no named quantity are X7; one row per table condition."
+    },
+    "6.1.0": {
+      "rules": "6.1.0.md",
+      "sha256": "9fd5c82bed9af43405fca6f8691ef17c7f38b8e27e1ca6844d3a347b49f50ffa",
+      "released": "2026-10-14",
+      "notes": "Same as 6.0.0 except a symmetric ± tolerance keeps its sign in metric_value (±0.2, not 0.2); validate refuses a bare number when the cited threshold text is ±x."
+    },
+    "6.2.0": {
+      "rules": "6.2.0.md",
+      "sha256": "a0f9fd00cc94b1869ceb742d72c5fb5806648af117894d25e34ba7f3943bdea9",
+      "released": "2026-10-15",
+      "notes": "Same as 6.1.0 except: the same metric stated in several places is one row with all its lines (occurrences, not D1 duplicates); a value stated in prose or a table is not an X13 formula operand."
+    },
+    "6.3.0": {
+      "rules": "6.3.0.md",
+      "sha256": "6ad069edae35abc00f665a8a5fb7ffe5db5c641fdf5c81268988a9b36aea96de",
+      "released": "2026-10-15",
+      "notes": "Same as 6.2.0 except data dictionaries (§2.5): a data element's data format (one row, the whole format) and allowed occurrences are A1, not X3 definitions; notations, code lists and obligation M/O/C are not rows."
+    },
+    "6.4.0": {
+      "rules": "6.4.0.md",
+      "sha256": "9a7ada0a201a75a8e92774f6483a6b46d4ad1684cf5aefa9e84f626a64b78a2a",
+      "released": "2026-10-16",
+      "notes": "Same as 6.3.0 except conditions (§3): condition covers applicability, environment, operating state, test method or apparatus, location, load or time point; the subject names only the object; condition written as <kind>：<value> qualifiers; the same settings under two test methods are two metrics."
     }
   }
 }
