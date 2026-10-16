@@ -1,0 +1,10 @@
+{
+  "missing": 30,
+  "false_positive": 30,
+  "value": 10,
+  "condition": 8,
+  "range_type": 6,
+  "kind": 6,
+  "unit": 6,
+  "lines": 4
+}

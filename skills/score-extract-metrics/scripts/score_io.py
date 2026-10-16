@@ -26,12 +26,23 @@ GOLD_SKILL = 'extract-metrics-benchmark'
 MIN_GOLD_VERSION = '3.0.0'
 STAND_IN_VERSION = '2.1.0'
 STAND_IN_DROPPED_KINDS = {'inspection_requirement', 'delegated_requirement'}
-# Field checks on a matched pair and their weights (sum 1.0). A check that cannot be made
+# The score is a weighted mean of components, each in 0..1:
+#   missing         share of gold metrics that were found      (matched / gold rows)
+#   false_positive  share of predicted rows that are real      (matched / predicted rows)
+#   <field>         accuracy of one field check over the matched pairs
+# Weights are relative (they are normalized to sum 1.0), set in weights.json next to SKILL.md and
+# overridable per run with --weights FILE or --weight NAME=VALUE. A field check that cannot be made
 # (lines, when the source changed since the gold run) is left out and the rest renormalized.
-# Scoring version 2 (2026-10-16) adds the condition check; scores of version 1 (no condition:
-# value .30, range_type .20, kind .20, unit .15, lines .15) are not comparable with version 2.
-SCORING_VERSION = 2
-WEIGHTS = {'value': 0.25, 'range_type': 0.15, 'kind': 0.15, 'unit': 0.15, 'lines': 0.10, 'condition': 0.20}
+# Scoring version 3 (2026-10-16) makes missing and false metrics components of their own, weighted
+# above every field check. Version 2 was soft F1 over per-pair credit (value .25, condition .20,
+# range_type/kind/unit .15, lines .10); version 1 had no condition check. Scores of different
+# scoring versions are not comparable.
+SCORING_VERSION = 3
+FIELD_NAMES = ('value', 'range_type', 'kind', 'unit', 'lines', 'condition')
+COUNT_NAMES = ('missing', 'false_positive')
+DEFAULT_WEIGHTS = {'missing': 30, 'false_positive': 30, 'value': 10, 'range_type': 6, 'kind': 6,
+                   'unit': 6, 'lines': 4, 'condition': 8}
+WEIGHTS_FILE = SKILL_DIR / 'weights.json'
 # Only notation or wording can differ for these; range_type and kind are enums, a mismatch is
 # always real.
 OVERRIDABLE = {'value', 'unit', 'lines', 'condition'}
@@ -291,10 +302,14 @@ def unit_ok(gold, pred):
     return norm(gold.get('metric_unit')).replace(' ', '') == norm(pred.get('metric_unit')).replace(' ', '')
 
 
+# Dash variants a source and an annotator use for the same thing (GB/T 19851.21—2007 / -2007).
+CONDITION_DASHES = str.maketrans({c: '-' for c in '—–―‐‑‒－'})
+
+
 def condition_parts(text):
-    """A condition as a set of qualifier values: labels (`适用人群：`) and whitespace ignored."""
+    """A condition as a set of qualifier values: labels (`适用人群：`), whitespace and dash variants ignored."""
     parts = set()
-    for part in re.split(r'[;；]', norm(text).replace(' ', '')):
+    for part in re.split(r'[;；]', norm(text).replace(' ', '').translate(CONDITION_DASHES)):
         if not part:
             continue
         label, sep, value = part.partition(':')  # NFKC folds the full-width colon
@@ -323,10 +338,37 @@ def field_checks(gold, pred, lines_comparable=True):
                      if lines_comparable else None}
 
 
-def pair_credit(checks):
+def load_weights(path=None, overrides=()):
+    """Relative weights from weights.json (or --weights FILE), then NAME=VALUE overrides; normalized to sum 1."""
+    raw = dict(DEFAULT_WEIGHTS)
+    file = Path(path) if path else WEIGHTS_FILE
+    if path or file.exists():
+        require(file.exists(), f'weights file not found: {file}')
+        raw.update(json.loads(file.read_text(encoding='utf-8')))
+    for item in overrides:
+        name, sep, value = item.partition('=')
+        require(sep, f'--weight needs NAME=VALUE, got {item!r}')
+        raw[name.strip()] = value.strip()
+    unknown = sorted(set(raw) - set(DEFAULT_WEIGHTS))
+    require(not unknown, f'unknown weight names {unknown}; valid: {sorted(DEFAULT_WEIGHTS)}')
+    weights = {}
+    for name in DEFAULT_WEIGHTS:
+        try:
+            weights[name] = float(raw[name])
+        except (TypeError, ValueError):
+            raise ScoreError(f'weight {name} must be a number, got {raw[name]!r}')
+        require(weights[name] >= 0, f'weight {name} must not be negative')
+    total = sum(weights.values())
+    require(total > 0, 'weights must not all be zero')
+    return {name: w / total for name, w in weights.items()}
+
+
+def pair_credit(checks, weights=None):
+    """Weighted share of the passed field checks of one pair (diagnostic; the score uses field accuracy)."""
+    w = weights or DEFAULT_WEIGHTS
     used = {f: ok for f, ok in checks.items() if ok is not None}
-    total = sum(WEIGHTS[f] for f in used)
-    return sum(WEIGHTS[f] for f, ok in used.items() if ok) / total if total else 0.0
+    total = sum(w[f] for f in used)
+    return sum(w[f] for f, ok in used.items() if ok) / total if total else 0.0
 
 
 # ---------- export ----------
@@ -453,23 +495,41 @@ def check_matches(inp, matches):
         require(str(o.get('reason') or '').strip(), f'override for {o["gold"]}/{o["field"]} needs a reason')
 
 
-def metrics_for(gold_ids, pairs_credit, n_pred):
+def metrics_for(gold_ids, pairs, n_pred, weights):
+    """Components and the weighted score for the gold rows in gold_ids; pairs are the scored pairs."""
     n_gold = len(gold_ids)
-    credit = sum(c for g, c in pairs_credit.items() if g in gold_ids)
-    matched = sum(1 for g in pairs_credit if g in gold_ids)
-    soft_r = credit / n_gold if n_gold else 0.0
+    mine = [p for p in pairs if p['gold'] in gold_ids]
+    matched = len(mine)
+    components = {'missing': matched / n_gold if n_gold else 0.0,
+                  'false_positive': matched / n_pred if n_pred else 0.0}
+    field_acc = {}
+    for f in FIELD_NAMES:
+        vals = [p['checks'][f] for p in mine if p['checks'][f] is not None]
+        field_acc[f] = (sum(vals) / len(vals)) if vals else None
+    # A field no pair could be checked on is left out when pairs exist (renormalized); with no pairs
+    # at all every field counts as 0.
+    used = {n: w for n, w in weights.items()
+            if n in COUNT_NAMES or field_acc[n] is not None or not mine}
+    components.update({f: (field_acc[f] or 0.0) for f in FIELD_NAMES})
+    total = sum(used.values())
+    weighted = sum(w * components[n] for n, w in used.items()) / total if total else 0.0
+    credit = sum(p['credit'] for p in mine)
     soft_p = credit / n_pred if n_pred else 0.0
+    soft_r = credit / n_gold if n_gold else 0.0
     soft_f1 = 2 * soft_p * soft_r / (soft_p + soft_r) if soft_p + soft_r else 0.0
-    hard_r = matched / n_gold if n_gold else 0.0
-    hard_p = matched / n_pred if n_pred else 0.0
+    hard_r, hard_p = components['missing'], components['false_positive']
     hard_f1 = 2 * hard_p * hard_r / (hard_p + hard_r) if hard_p + hard_r else 0.0
-    return {'score': max(1, min(100, round(100 * soft_f1))), 'soft_f1': soft_f1,
-            'soft_precision': soft_p, 'soft_recall': soft_r, 'precision': hard_p, 'recall': hard_r,
-            'f1': hard_f1, 'gold_rows': n_gold, 'predicted_rows': n_pred, 'matched': matched}
+    return {'score': max(1, min(100, round(100 * weighted))), 'weighted': weighted,
+            'components': components, 'field_accuracy': field_acc,
+            'missed': n_gold - matched, 'false_positives': n_pred - matched,
+            'soft_f1': soft_f1, 'soft_precision': soft_p, 'soft_recall': soft_r,
+            'precision': hard_p, 'recall': hard_r, 'f1': hard_f1,
+            'gold_rows': n_gold, 'predicted_rows': n_pred, 'matched': matched}
 
 
-def score(inp, matches):
+def score(inp, matches, weights=None):
     check_matches(inp, matches)
+    weights = weights or load_weights()
     gold = {g['metric_id']: g for g in inp['gold']}
     pred = {p['metric_id']: p for p in inp['predictions']}
     comparable = inp['source']['lines_comparable']
@@ -480,19 +540,14 @@ def score(inp, matches):
         for field in checks:
             if (p['gold'], field) in overrides and checks[field] is not None:
                 checks[field] = overrides[(p['gold'], field)]['correct']
-        pairs.append({**p, 'checks': checks, 'credit': pair_credit(checks)})
-    credit = {p['gold']: p['credit'] for p in pairs}
-    main = metrics_for(set(gold), credit, len(pred))
+        pairs.append({**p, 'checks': checks, 'credit': pair_credit(checks, weights)})
+    main = metrics_for(set(gold), pairs, len(pred), weights)
     # Production extraction may not target test-method settings: also score without them.
     test_gold = {g for g, row in gold.items() if row['kind'] == 'test_parameter'}
     test_pred = {p['pred'] for p in pairs if p['gold'] in test_gold}
-    without_tests = metrics_for(set(gold) - test_gold, credit, len(pred) - len(test_pred)) if test_gold else None
-    field_acc = {}
-    for f in WEIGHTS:
-        vals = [p['checks'][f] for p in pairs if p['checks'][f] is not None]
-        field_acc[f] = (sum(vals) / len(vals)) if vals else None
+    without_tests = metrics_for(set(gold) - test_gold, pairs, len(pred) - len(test_pred), weights) if test_gold else None
     return {'score': main['score'], 'main': main, 'without_test_parameters': without_tests,
-            'field_accuracy': field_acc, 'weights': WEIGHTS, 'scoring_version': SCORING_VERSION,
+            'field_accuracy': main['field_accuracy'], 'weights': weights, 'scoring_version': SCORING_VERSION,
             'pairs': pairs,
             'missed': matches.get('missed', []), 'false_positives': matches.get('false_positives', []),
             'overrides': matches.get('overrides', [])}
@@ -516,20 +571,26 @@ def report(inp, result, scorer_model):
              f'(saved {ext["created_at"][1]}, log run {ext["log_run_id"]}) |',
              f'| Source lines comparable | {"yes" if src["lines_comparable"] else "no"} |',
              f'| Scored by | {scorer_model} |',
-             f'| Scoring version | {result.get("scoring_version", 1)} (weights: '
-             f'{", ".join(f"{f} {w}" for f, w in result["weights"].items())}) |', '',
-             '## Components', '',
-             '| | Gold | Predicted | Matched | Soft precision | Soft recall | Soft F1 | Matched-row precision | Matched-row recall | Score |',
-             '|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|']
+             f'| Scoring version | {result.get("scoring_version", 1)} |', '',
+             '## Score components', '',
+             '| Component | Weight | All rows | Without test parameters |', '|---|---:|---:|---:|']
+    wt = result['without_test_parameters']
+    for name, w in result['weights'].items():
+        label = {'missing': 'Found gold metrics (1 − missed share)',
+                 'false_positive': 'Real predictions (1 − false-positive share)'}.get(name, f'{name} accuracy on pairs')
+        lines.append(f'| {label} | {w:.3f} | {pct(m["components"][name])} | {pct(wt["components"][name]) if wt else "—"} |')
+    lines += ['', '## Counts', '',
+              '| | Gold | Predicted | Matched | Missed | False positives | Matched-row precision | Matched-row recall | Soft F1 (v2 style) | Score |',
+              '|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|']
     variants = [('All rows', m)]
     if result['without_test_parameters']:
         variants.append(('Without test parameters', result['without_test_parameters']))
     for label, v in variants:
         lines.append(f'| {label} | {v["gold_rows"]} | {v["predicted_rows"]} | {v["matched"]} '
-                     f'| {pct(v["soft_precision"])} | {pct(v["soft_recall"])} | {pct(v["soft_f1"])} '
-                     f'| {pct(v["precision"])} | {pct(v["recall"])} | {v["score"]} |')
+                     f'| {v["missed"]} | {v["false_positives"]} | {pct(v["precision"])} | {pct(v["recall"])} '
+                     f'| {pct(v["soft_f1"])} | {v["score"]} |')
     lines += ['', '## Field accuracy on matched pairs', '', '| Field | Weight | Accuracy |', '|---|---:|---:|']
-    lines += [f'| {f} | {w:.2f} | {pct(result["field_accuracy"][f])} |' for f, w in WEIGHTS.items()]
+    lines += [f'| {f} | {result["weights"][f]:.3f} | {pct(result["field_accuracy"][f])} |' for f in FIELD_NAMES]
     weak = [p for p in result['pairs'] if p['credit'] < 1]
     lines += ['', f'## Matched pairs with field errors ({len(weak)} of {len(result["pairs"])})', '']
     if weak:
@@ -569,9 +630,11 @@ def report(inp, result, scorer_model):
     if warnings:
         lines += ['', '## Warnings', ''] + [f'- {w}' for w in warnings]
     lines += ['', '## Method', '',
-              'Each matched pair earns credit = weighted share of passed field checks '
-              f'({", ".join(f"{f} {w}" for f, w in WEIGHTS.items())}). Soft precision = credit / predicted rows, '
-              'soft recall = credit / gold rows, score = round(100 × soft F1), clamped to 1–100.']
+              'Score = round(100 × weighted mean of the components above), clamped to 1–100. Weights are '
+              f'relative and normalized ({", ".join(f"{f} {w:.3f}" for f, w in result["weights"].items())}); '
+              'a field no pair could be checked on is left out and the rest renormalized. '
+              'Found = matched / gold rows; real predictions = matched / predicted rows; each field '
+              'accuracy is the share of matched pairs passing that check.']
     return '\n'.join(lines) + '\n'
 
 
@@ -607,6 +670,9 @@ def main():
     sc = sub.add_parser('score', help='check matches.json and write score.json and report.md')
     sc.add_argument('--dir', required=True, type=Path, help='directory holding input.json and matches.json')
     sc.add_argument('--scorer-model', required=True, help='exact ID of the model that made the matches')
+    sc.add_argument('--weights', help=f'JSON file of relative weights (default: {WEIGHTS_FILE.name} in the skill dir)')
+    sc.add_argument('--weight', action='append', default=[], metavar='NAME=VALUE',
+                    help=f'override one weight for this run; names: {", ".join(DEFAULT_WEIGHTS)}')
     args = parser.parse_args()
     if args.action == 'export':
         require(args.record_id > 0, 'record ID must be a positive integer')
@@ -619,14 +685,16 @@ def main():
         return
     inp = json.loads((args.dir / 'input.json').read_text(encoding='utf-8'))
     matches = json.loads((args.dir / 'matches.json').read_text(encoding='utf-8'))
-    result = score(inp, matches)
+    result = score(inp, matches, load_weights(args.weights, args.weight))
     result.update(record_id=inp['record_id'], gold_run=inp['gold_run'], scorer_model=args.scorer_model,
                   scored_at=datetime.now().isoformat(timespec='seconds'))
     (args.dir / 'score.json').write_text(json.dumps(result, ensure_ascii=False, indent=2, default=str), encoding='utf-8')
     (args.dir / 'report.md').write_text(report(inp, result, args.scorer_model), encoding='utf-8')
     m = result['main']
-    print(json.dumps({'score': result['score'], 'soft_precision': round(m['soft_precision'], 3),
-                      'soft_recall': round(m['soft_recall'], 3), 'soft_f1': round(m['soft_f1'], 3),
+    print(json.dumps({'score': result['score'], 'found': round(m['components']['missing'], 3),
+                      'real_predictions': round(m['components']['false_positive'], 3),
+                      'missed': m['missed'], 'false_positives': m['false_positives'],
+                      'soft_f1_v2_style': round(m['soft_f1'], 3),
                       'matched_row_precision': round(m['precision'], 3), 'matched_row_recall': round(m['recall'], 3),
                       'report': str(args.dir / 'report.md')}))
 

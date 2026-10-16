@@ -94,41 +94,64 @@ Do not use one because a mistake looks minor. `range_type` (the comparator) and 
 overridden. A test setting stored as a requirement is a real kind error.
 
 The `condition` check compares the qualifier values: it splits each condition on `；`/`;`, ignores
-the `<kind>：` labels, whitespace and order, and passes when both sides hold the same set (both
-empty also passes). Override it only when both sides state the same qualifiers in other words
-(`幼儿` vs `3 周岁～6 周岁幼儿`, a label the gold leaves out). A missing qualifier, an extra one
+the `<kind>：` labels, whitespace, order and dash variants (`—` / `-`, from 2026-10-17), and passes
+when both sides hold the same set (both empty also passes). Override it only when both sides state
+the same qualifiers in other words (`幼儿` vs `3 周岁～6 周岁幼儿`, `通用或专用的线性量规` vs `通用或专用线性量规`,
+`施加位置：横梁起点和终点的中心位置` vs `加载部位：横梁起点和终点中心`, a label the gold leaves out). Check
+every failed condition pair for such a case before scoring: the 2026-10-17 review of record 371
+found several that had not been overridden. A missing qualifier, an extra one
 (a repeated subject or property, or a condition the source does not state) or a different one is a
 real error.
 
 ## 3. Score
 
 ```bash
-python3 $S score --dir <directory of input.json> --scorer-model <your exact model ID>
+python3 $S score --dir <directory of input.json> --scorer-model <your exact model ID> \
+  [--weights <file.json>] [--weight NAME=VALUE ...]
 ```
 
 The script writes `score.json` and `report.md` in that directory (next to the source line file,
 under `extract-metrics-scores/`, outside Git). Fix any refusal in `matches.json` and run it again.
 
-How the score is computed: each pair earns credit, the weighted share of the checks it passes
-(value 0.25, comparator 0.15, statement kind 0.15, unit 0.15, overlapping source lines 0.10,
-condition 0.20). This is scoring version 2 (2026-10-16), recorded in `score.json` and the report;
-version 1 had no condition check (value 0.30, comparator 0.20, kind 0.20, unit 0.15, lines 0.15), so
-never compare a version-1 score with a version-2 score.
-Missed gold rows and false positives earn nothing. Soft precision = credit / predicted rows.
-Soft recall = credit / gold rows. **Score = round(100 × soft F1)**, clamped to 1–100. The report
-also gives a score without test-method settings (`test_parameter` gold rows), because production
-extraction may not target them.
+How the score is computed (scoring version 3, 2026-10-16): the score is a weighted mean of eight
+components, each between 0 and 1. Missing and false metrics are components of their own and carry
+the highest weights.
+
+| Component | Meaning | Default weight |
+|---|---|---:|
+| `missing` | share of gold metrics that were found (matched / gold rows) | 30 |
+| `false_positive` | share of predicted rows that are real (matched / predicted rows) | 30 |
+| `value` | share of matched pairs whose value check passes | 10 |
+| `condition` | same, condition check | 8 |
+| `range_type`, `kind`, `unit` | same, comparator / statement kind / unit | 6 each |
+| `lines` | same, overlapping source lines | 4 |
+
+**Score = round(100 × weighted mean)**, clamped to 1–100. Weights are relative and normalized, so
+only their ratios matter. A field check that cannot be made on any pair (`lines`, when the source
+changed) is left out and the rest renormalized. The report also gives a score without
+test-method settings (`test_parameter` gold rows), because production extraction may not target
+them, plus the old soft F1 (version 2 style) as a diagnostic.
+
+**Configuring the weights.** Edit `weights.json` next to this file (all eight names; missing
+names fall back to the defaults above). For one run, pass `--weights <file.json>` or repeat
+`--weight NAME=VALUE`, for example `--weight missing=50 --weight lines=0`. Unknown names,
+negative values and all-zero weights are refused. The weights used are saved in `score.json` and
+the report. A score is comparable with another only when the gold run, the scoring version **and
+the weights** are the same: say which weights you used if they differ from `weights.json`.
+
+Version 2 was soft F1 over per-pair credit (value .25, condition .20, comparator/kind/unit .15,
+lines .10); version 1 had no condition check. Never compare scores across versions.
 
 ## 4. Report to the user
 
 Give the score first, then: the gold run key (version / model / run ID) and the extraction
-(prompt, model, date); soft precision and soft recall (the ones the score is built from), the
-matched-row precision and recall, and the without-test-parameters score; the main error
+(prompt, model, date); the components (found share, real-prediction share, per-field accuracy)
+with the weights used, the counts of missed and false-positive rows, and the without-test-parameters score; the main error
 patterns (which fields fail most, the false-positive causes, what was missed); any warnings; and
 the `report.md` path. Mention any dropped row the report flags as on the same lines as a missed gold
 row: `extract_metrics` set it aside (`kb.metrics_dropped`, not scored), so it may be a wrong drop.
-When comparing scores, compare only scores made against the same gold run and the same scoring
-version. A gold run under rules older than 6.4.0 may write conditions in another shape or leave
+When comparing scores, compare only scores made against the same gold run, the same scoring
+version and the same weights. A gold run under rules older than 6.4.0 may write conditions in another shape or leave
 the test method out of them; say so when the condition check fails often against such a run.
 
 ## Common mistakes
@@ -139,4 +162,4 @@ the test method out of them; say so when the condition check fails often against
 - Pairing by line number or name alone. A table line often holds several metrics, so pair by
   object, property and clause.
 - Pairing a false positive with a leftover gold row to raise recall.
-- Overriding a real mistake because it looks small. The weights already keep small mistakes small.
+- Overriding a real mistake because it looks small. The field weights already keep small mistakes small.

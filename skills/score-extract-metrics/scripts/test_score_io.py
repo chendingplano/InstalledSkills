@@ -88,6 +88,8 @@ class FieldCheckTests(unittest.TestCase):
         self.assertFalse(io.condition_ok(g, row('p', condition='适用人群：幼儿')))         # missing qualifier
         self.assertFalse(io.condition_ok(g, row('p')))                                  # empty vs set
         self.assertTrue(io.condition_ok(row('g'), row('p', condition='')))              # both empty
+        self.assertTrue(io.condition_ok(row('g', condition='试验方法：GB/T 19851.21—2007中第3章'),
+                                        row('p', condition='试验方法：GB/T 19851.21-2007中第3章')))  # dash variants
         checks = io.field_checks(g, row('p', condition='适用人群：成年人；称量≤50 kg'))
         self.assertFalse(checks['condition'])
         self.assertAlmostEqual(io.pair_credit(checks), 0.80)
@@ -106,11 +108,37 @@ class ScoreTests(unittest.TestCase):
 
     def test_score_formula(self):
         result = io.score(self.inp, self.matches)
-        credit = 1.0 + 0.75  # g2/p2: value wrong
-        p = r = credit / 3
-        self.assertAlmostEqual(result['main']['soft_f1'], 2 * p * r / (p + r))
-        self.assertEqual(result['score'], round(100 * credit / 3))
+        w = io.load_weights()
+        # 2 of 3 gold found, 2 of 3 predictions real; value right on 1 of 2 pairs, other fields all right
+        comp = {'missing': 2 / 3, 'false_positive': 2 / 3, 'value': 0.5, 'range_type': 1, 'kind': 1,
+                'unit': 1, 'lines': 1, 'condition': 1}
+        self.assertEqual(result['score'], round(100 * sum(w[n] * comp[n] for n in comp)))
+        self.assertAlmostEqual(result['main']['soft_f1'], 2 * (1.75 / 3) * (1.75 / 3) / (2 * 1.75 / 3))
         self.assertEqual(result['without_test_parameters']['gold_rows'], 2)
+
+    def test_weights_are_configurable(self):
+        only_missing = io.load_weights(overrides=[f'{n}=0' for n in io.DEFAULT_WEIGHTS if n != 'missing'])
+        self.assertEqual(io.score(self.inp, self.matches, only_missing)['score'], round(100 * 2 / 3))
+        only_false = io.load_weights(overrides=[f'{n}=0' for n in io.DEFAULT_WEIGHTS if n != 'false_positive'])
+        self.assertEqual(io.score(self.inp, self.matches, only_false)['score'], round(100 * 2 / 3))
+        only_value = io.load_weights(overrides=[f'{n}=0' for n in io.DEFAULT_WEIGHTS if n != 'value'])
+        self.assertEqual(io.score(self.inp, self.matches, only_value)['score'], 50)
+
+    def test_missing_and_false_outweigh_every_field(self):
+        w = io.load_weights()
+        self.assertAlmostEqual(sum(w.values()), 1.0)
+        for field in io.FIELD_NAMES:
+            self.assertGreater(min(w['missing'], w['false_positive']), w[field])
+
+    def test_bad_weights_are_refused(self):
+        with self.assertRaisesRegex(io.ScoreError, 'unknown weight'):
+            io.load_weights(overrides=['bogus=1'])
+        with self.assertRaisesRegex(io.ScoreError, 'negative'):
+            io.load_weights(overrides=['value=-1'])
+        with self.assertRaisesRegex(io.ScoreError, 'NAME=VALUE'):
+            io.load_weights(overrides=['value'])
+        with self.assertRaisesRegex(io.ScoreError, 'all be zero'):
+            io.load_weights(overrides=[f'{n}=0' for n in io.DEFAULT_WEIGHTS])
 
     def test_perfect_and_floor(self):
         inp = copy.deepcopy(self.inp)
@@ -123,7 +151,7 @@ class ScoreTests(unittest.TestCase):
 
     def test_override_changes_credit(self):
         self.matches['overrides'] = [{'gold': 'g2', 'field': 'value', 'correct': True, 'reason': 'notation'}]
-        self.assertEqual(io.score(self.inp, self.matches)['score'], 67)
+        self.assertEqual(io.score(self.inp, self.matches)['score'], 80)
 
     def test_accounting_is_enforced(self):
         bad = copy.deepcopy(self.matches)
