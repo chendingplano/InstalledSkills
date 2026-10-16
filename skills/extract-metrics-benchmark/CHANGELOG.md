@@ -29,9 +29,24 @@ Two kinds of change are tracked separately:
 | 6.3.0 | `rules/6.3.0.md` | Data dictionaries: a data element's data format (one row, the whole format) and allowed occurrences are A1, not X3 definitions. See below. |
 | 6.4.0 | `rules/6.4.0.md` | Conditions read broadly (test method or apparatus, environment, population, location, load), object-only subject, `<kind>：<value>` shape. See below. |
 | 6.5.0 | `rules/6.5.0.md` | A number that only qualifies another value (paired load, apparatus grade, restated setting) is its condition, not a row; a limit relative to another limit is A1 (`倍`), not D1. See below. |
+| 6.6.0 | `rules/6.6.0.md` | A value the source does not state as a quantity (a derived count of ends/positions, a reset-to-zero instruction) is excluded as X19. See below. |
 
-Default when no version is named: the newest released version (currently 6.5.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
+Default when no version is named: the newest released version (currently 6.6.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
 because rows were already saved under those labels.
+
+### 6.6.0 — 2026-10-16
+
+Found when the user reviewed `extract_metrics` on record 371 (GB/T 44700—2024) against the 6.5.0 run
+`20261016_134040` (gpt-6.1-sol). Minor.
+
+- **A value the source does not state as a quantity (new X19).** A count the reader derives from
+  "两端数值" or "四角和中心" (端点数量 2, 测量点数量 5) and a reset instruction with no value and unit
+  ("指针调整到"0"位" → 零位 0 mm) are not metrics: a user cannot use them. A number the text writes
+  stays A1/A6.
+
+The stored 6.5.0 run is not changed; its corrected copies `20261016_151516` (nine derived counts) and
+`20261016_153000` (plus the zero position) are separate runs. `extract_metrics` follows the ruling
+from candidates prompt v21 / enrich prompt v18 (ChenWeb).
 
 ### 6.5.0 — 2026-10-16
 

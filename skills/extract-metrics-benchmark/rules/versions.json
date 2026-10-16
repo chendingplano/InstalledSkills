@@ -101,6 +101,12 @@
       "sha256": "0a69280db5d6a41c3421cf0304b3fb47881a0a6fd95a14e1b580e5cd43f31655",
       "released": "2026-10-16",
       "notes": "Same as 6.4.0 except: a number that only qualifies another value of its clause (a paired load, an apparatus grade, a restated setting) is that value's condition, not a row; a limit stated relative to another limit (1/10 of, equal to the absolute value of) is A1 with unit 倍, not a D1 pointer."
+    },
+    "6.6.0": {
+      "rules": "6.6.0.md",
+      "sha256": "345368e26de14928d169f590041ddf675794482d9b7213e9e361109642bd4cc1",
+      "released": "2026-10-16",
+      "notes": "Same as 6.5.0 except: a value the source does not state as a quantity (a derived count of ends/positions, a reset-to-zero instruction) is excluded as X19, not a metric."
     }
   }
 }
