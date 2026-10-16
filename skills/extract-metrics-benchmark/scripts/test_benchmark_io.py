@@ -418,6 +418,65 @@ class BenchmarkIOTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.io.validate(self.record, payload)
 
+    def test_rules_6_1_plus_minus_tolerance_keeps_its_sign(self):
+        bare = self.pinned('6.1.0')
+        bare['metrics'][0].update(threshold_or_target='Uncertainty shall be \u00b10.5 MPa.', metric_value='0.5')
+        with self.assertRaises(ValueError):
+            self.io.validate(self.record, bare)
+        signed = self.pinned('6.1.0')
+        signed['metrics'][0].update(threshold_or_target='Uncertainty shall be \u00b10.5 MPa.', metric_value='\u00b10.5')
+        self.io.validate(self.record, signed)
+        old = self.pinned('6.0.0')                                   # earlier versions are unchanged
+        old['metrics'][0].update(threshold_or_target='Uncertainty shall be \u00b10.5 MPa.', metric_value='0.5')
+        self.io.validate(self.record, old)
+
+    def test_rules_6_4_condition_en_for_a_non_english_condition(self):
+        def zh(version, **extra):
+            payload = self.pinned(version)
+            payload['language'] = 'zh'
+            payload['metrics'][0].update(condition='适用人群：幼儿', **extra)
+            return payload
+        with self.assertRaises(ValueError):
+            self.io.validate(self.record, zh('6.4.0'))
+        rows = self.io.validate(self.record, zh('6.4.0', condition_en='Population: preschool children'))
+        self.assertEqual(rows[0]['condition_en'], 'Population: preschool children')
+        self.io.validate(self.record, zh('6.3.0'))                   # earlier versions are unchanged
+        english = self.pinned('6.4.0')                               # English sources need no _en
+        english['metrics'][0]['condition'] = 'Population: adults'
+        self.assertNotIn('condition_en', self.io.validate(self.record, english)[0])
+
+    def test_rules_6_2_one_metric_holds_all_its_occurrences(self):
+        self.source.write_text(self.source.read_text(encoding='utf-8') +
+                               '3\t1\tparagraph\tArial\t10\t[0,40,100,60]\tPressure shall be \u2265 0.5 MPa.\n',
+                               encoding='utf-8')
+        payload = self.io.prepare(self.record, 'test-model', '6.2.0')
+        payload.update({k: copy.deepcopy(self.payload[k]) for k in (
+            'language', 'completeness_review', 'correctness_review', 'candidates', 'metrics')})
+        payload['coverage'] = [{'source_line_spans': ['1:3'], 'reason': 'All lines reviewed.'}]
+        # The restatement on line 3 is a second occurrence: accepted, same metric, its line listed.
+        payload['candidates'].append({'candidate_id': 'c2', 'decision': 'accepted',
+                                      'metric_ids': ['123_gold_1'], 'source_line_spans': ['3'],
+                                      'rule_id': 'A1', 'reason': 'Same metric as c1, restated.'})
+        with self.assertRaises(ValueError):                      # line 3 is not among the row's lines
+            self.io.validate(self.record, payload)
+        payload['metrics'][0]['source_line_spans'] = ['1:3']
+        payload['metrics'][0]['evidence'].append({'line': 3, 'quote': 'Pressure shall be \u2265 0.5 MPa.'})
+        self.io.validate(self.record, payload)
+        # The same metric kept as two rows is refused from 6.2.0 on, and still allowed before.
+        twin = copy.deepcopy(payload['metrics'][0])
+        twin.update(metric_id='123_gold_2', source_line_spans=['3'])
+        twin['evidence'] = [{'line': 3, 'quote': 'Pressure shall be \u2265 0.5 MPa.'}]
+        payload['metrics'][0]['source_line_spans'] = ['1:2']
+        payload['metrics'][0]['evidence'].pop()
+        payload['metrics'].append(twin)
+        payload['candidates'][1]['metric_ids'] = ['123_gold_2']
+        with self.assertRaises(ValueError):
+            self.io.validate(self.record, payload)
+        old = self.io.prepare(self.record, 'test-model', '6.1.0')
+        old.update({k: copy.deepcopy(payload[k]) for k in (
+            'language', 'completeness_review', 'correctness_review', 'coverage', 'candidates', 'metrics')})
+        self.io.validate(self.record, old)
+
     def test_rules_6_a_metric_states_a_value(self):
         ids5, ids6 = self.io.rule_ids('5.1.0'), self.io.rule_ids('6.0.0')
         self.assertEqual(ids5 - {'A4', 'A5'} | {'X18'}, ids6)

@@ -65,6 +65,7 @@ Populate the prepared payload; retain its ID/path/hash/run ID/skill name/skill v
     "value_min": null,
     "value_max": null,
     "condition": "",
+    "condition_en": null,
     "formula_or_definition": "",
     "threshold_or_target": "Pressure shall be ≥ 0.5 MPa.",
     "measurement_frequency": "",
@@ -108,7 +109,8 @@ Use **storage names** (`metric_subject`, `metric_desc`, `metric_context`, `metri
 | `reasoning_tags` (rules ≥ 3.0.0) | The kind is never `inspection_requirement`, `delegated_requirement` or `observation`, and no row carries `value_class = reference`, `external_reference` or `cited_doc:`: those requirements are excluded candidates (`rule_id` X15/X16) that link no metric |
 | `value_data_type` | Describe the actual stored value representation (for example `number`); empty for qualitative/limit_absent rows with no scalar value |
 | `value_min`, `value_max` | Finite JSON numbers for range only, lower ≤ upper |
-| `condition` | Source-stated applicability; empty if absent |
+| `condition` | Source-stated applicability; empty if absent. From rules 6.4.0 every stated qualifier of the value (applicability, environment, operating state, test method or apparatus, location, load, time point) as `<kind>：<value>` parts joined by `；` |
+| `condition_en` | English rendering of `condition` for non-English sources, same shape (`<kind>: <value>` joined by `; `); null for English sources. Required from rules 6.4.0 whenever `condition` is non-empty |
 | `source_line_spans` | Original `N`/`N:M` strings; no page numbers or row suffixes |
 | `source_table_rows` | `[{"line": 116, "rows": ["r1"]}]`; optional verified `row_hash` map in production form |
 | `confidence` | Finite number 0–1; never substitutes for review |
@@ -116,7 +118,7 @@ Use **storage names** (`metric_subject`, `metric_desc`, `metric_context`, `metri
 | `metric_categories` | One or more meaningful keys, never hierarchy paths |
 | `annotation_notes` | Optional source-interpretation, tolerance/comparator, table-context or category rationale; saved in `ext_info` |
 
-For non-English sources add applicable `metric_name_en`, `metric_subject_en`, `metric_desc_en`, `metric_context_en`, `metric_keywords_en`, `metric_unit_en`, `value_class_en`. English rows store them null. The helper supplies document/run IDs, filename/hash, `skill_name` (from `SKILL.md` frontmatter `name`), `skill_version` and `rules_sha256` (from `prepare --skill-version`, checked against `rules/versions.json`; validation fails for an unknown version or an edited released rules file; the hash is kept in the run row), `model_name` (from `prepare --model-name`; required) and per-row `ext_info` (schema version `3`: `evidence`, `annotation_notes`, and `candidate_ids`, the ledger entries that accepted or duplicate the row). The run's audit record (language, rules hash, title/doc number, `coverage`, `candidates`, reviews, `reviewed_at`) is stored once, in `testbed.metric_benchmark_runs`, not on every row. Title/doc number use `doc_metadata` with top-level fallback. It records only the model ID it is given and generates no prompt claims or production event IDs.
+For non-English sources add applicable `metric_name_en`, `metric_subject_en`, `metric_desc_en`, `metric_context_en`, `metric_keywords_en`, `metric_unit_en`, `value_class_en`, `condition_en`. English rows store them null. The helper supplies document/run IDs, filename/hash, `skill_name` (from `SKILL.md` frontmatter `name`), `skill_version` and `rules_sha256` (from `prepare --skill-version`, checked against `rules/versions.json`; validation fails for an unknown version or an edited released rules file; the hash is kept in the run row), `model_name` (from `prepare --model-name`; required) and per-row `ext_info` (schema version `3`: `evidence`, `annotation_notes`, and `candidate_ids`, the ledger entries that accepted or duplicate the row). The run's audit record (language, rules hash, title/doc number, `coverage`, `candidates`, reviews, `reviewed_at`) is stored once, in `testbed.metric_benchmark_runs`, not on every row. Title/doc number use `doc_metadata` with top-level fallback. It records only the model ID it is given and generates no prompt claims or production event IDs.
 
 ## Table provisioning and save
 

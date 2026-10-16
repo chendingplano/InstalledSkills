@@ -304,6 +304,13 @@ under 1.0.0, about 64 hold up under the review).
 
 ## Tooling changes
 
+### 2026-10-16 — condition_en in gold metrics
+
+`testbed.metrics.condition_en` (ChenWeb migration `20261016000002`) holds the English rendering of a
+gold row's `condition`, like `kb.metrics.condition_en`. `validate` accepts it as one of the `_en`
+fields and, for rules 6.4.0 and later, requires it on every row of a non-English source whose
+`condition` is non-empty. Earlier rules versions are unchanged. The ChenWeb metric pages show both.
+
 ### 2026-10-10 — one stored run ID column in gold metrics
 
 `testbed.metrics.run_id` is now the writable run ID column; the duplicate

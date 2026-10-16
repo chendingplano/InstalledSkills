@@ -38,7 +38,7 @@ OVERRIDABLE = {'value', 'unit', 'lines', 'condition'}
 FP_CAUSES = {'gold_excluded', 'duplicate', 'not_in_gold', 'invalid'}
 COMPARATORS = re.compile(r'[<>≤≥＜＞≦≧=]')
 METRIC_FIELDS = '''metric_id metric_name metric_subject metric_desc metric_unit metric_value
-value_range_type value_class value_min value_max condition formula_or_definition
+value_range_type value_class value_min value_max condition condition_en formula_or_definition
 threshold_or_target source_line_spans reasoning_tags'''.split()
 EXIT_NO_GOLD = 3
 EXIT_NO_PREDICTIONS = 4

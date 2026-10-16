@@ -21,7 +21,7 @@ condition formula_or_definition threshold_or_target measurement_frequency
 table_name_or_section'''.split()
 ARRAY_FIELDS = ['metric_keywords', 'metric_categories', 'reasoning_tags', 'source_line_spans']
 EN_FIELDS = '''metric_name_en metric_subject_en metric_desc_en metric_context_en
-metric_unit_en value_class_en'''.split()
+metric_unit_en value_class_en condition_en'''.split()
 RANGE_TYPES = {'lower_bound', 'upper_bound', 'exact', 'range', 'qualitative', 'limit_absent'}
 CLASSES = {'observation', 'requirement', 'target', 'reference', 'design_capability', 'definition'}
 # Rules 4.1.0+: an A4 row (value left to a declaration or agreement) is a metric with no value.
@@ -247,6 +247,13 @@ def validate(record, payload):
     gated_5_1 = version_key(payload['skill_version'])[:3] >= (5, 1, 0)
     # Checks introduced with rules 6.0.0: a metric states a value (A4 and A5 retired, X18).
     gated_6 = version_key(payload['skill_version'])[0] >= 6
+    # Checks introduced with rules 6.1.0: a symmetric ± tolerance keeps its sign in metric_value.
+    gated_6_1 = version_key(payload['skill_version'])[:3] >= (6, 1, 0)
+    # Checks introduced with rules 6.2.0: one row per metric, with the lines of all its occurrences.
+    gated_6_2 = version_key(payload['skill_version'])[:3] >= (6, 2, 0)
+    # Checks introduced with rules 6.4.0: a condition of a non-English source has its English rendering
+    # in condition_en, as kb.metrics.condition_en does since extract_metrics enrich prompt v13.
+    gated_6_4 = version_key(payload['skill_version'])[:3] >= (6, 4, 0)
     rules = rule_ids(payload['skill_version']) if gated else set()
     require(isinstance(payload.get('model_name'), str) and payload['model_name'].strip(),
             'Missing model_name')
@@ -307,6 +314,11 @@ def validate(record, payload):
             require(re.search(r'\d', metric['metric_value']), 'Numeric metric needs a source value')
             require(not gated or not COMPARATORS.search(metric['metric_value']),
                     'metric_value must not carry a comparator; use value_range_type')
+            if gated_6_1 and metric['value_range_type'] != 'range':
+                bare = metric['metric_value'].strip()
+                signed = re.search(r'±\s*' + re.escape(bare) + r'(?![0-9.])', metric['threshold_or_target'])
+                require(not signed, f'{metric["metric_id"]}: the source states ±{bare}; metric_value keeps '
+                        'the ± sign (rules 6.1.0)')
         else:
             require(not metric['metric_value'] and not metric['metric_unit'],
                     'Qualitative/limit_absent value and unit must be empty')
@@ -376,9 +388,13 @@ def validate(record, payload):
                     'Incorrect external-reference metric')
         identity = tuple(metric[x].strip().lower() for x in
                          ('metric_name', 'metric_subject', 'metric_unit', 'metric_value',
-                          'value_range_type', 'value_class', 'condition')) + (
-                              tuple(sorted(spans)), json.dumps(table_rows, sort_keys=True))
-        require(identity not in identities, 'Duplicate assertion')
+                          'value_range_type', 'value_class', 'condition'))
+        if not gated_6_2:                  # before 6.2.0 the same assertion at another location was a row
+            identity += (tuple(sorted(spans)), json.dumps(table_rows, sort_keys=True))
+        require(identity not in identities,
+                'Duplicate assertion' if not gated_6_2 else
+                f'{metric["metric_id"]}: the same metric is stated more than once; keep one row and list '
+                'every occurrence line in source_line_spans (rules 6.2.0, Occurrences)')
         identities.add(identity)
         row = {key: metric[key] for key in TEXT_FIELDS + ARRAY_FIELDS}
         row.update(source_table_rows=table_rows, confidence=confidence, is_explicit_metric=explicit,
@@ -387,6 +403,9 @@ def validate(record, payload):
             require(metric.get(key) is None or isinstance(metric[key], str), f'Invalid {key}')
             if payload['language'].lower() != 'en':
                 row[key] = metric.get(key)
+        if gated_6_4 and payload['language'].lower() != 'en' and metric['condition'].strip():
+            require((metric.get('condition_en') or '').strip(),
+                    f'{metric["metric_id"]}: condition_en is required for a non-English condition (rules 6.4.0)')
         if payload['language'].lower() != 'en':
             string_list(metric.get('metric_keywords_en', []), 'metric_keywords_en')
             row['metric_keywords_en'] = metric.get('metric_keywords_en', [])
@@ -423,6 +442,13 @@ def validate(record, payload):
         require(decision != 'excluded' or not targets, 'Excluded candidate references a metric')
         if decision == 'accepted':
             linked.update(targets)
+            if gated_6_2:
+                cited = expand_spans(candidate['source_line_spans'], lines)
+                for target in targets:
+                    own = next(r for r in rows if r['metric_id'] == target)
+                    require(cited <= expand_spans(own['source_line_spans'], lines),
+                            f'Candidate {cid}: an occurrence of {target} must be listed in its '
+                            'source_line_spans (rules 6.2.0, Occurrences)')
     require(linked == ids, 'Every metric needs an accepted candidate')
     for row in rows:
         row['ext_info']['candidate_ids'] = sorted(
