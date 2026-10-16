@@ -28,9 +28,24 @@ Two kinds of change are tracked separately:
 | 6.2.0 | `rules/6.2.0.md` | The same metric stated in several places is one row listing all its lines (not D1 duplicates); a value stated in prose or a table is not an X13 formula operand. See below. |
 | 6.3.0 | `rules/6.3.0.md` | Data dictionaries: a data element's data format (one row, the whole format) and allowed occurrences are A1, not X3 definitions. See below. |
 | 6.4.0 | `rules/6.4.0.md` | Conditions read broadly (test method or apparatus, environment, population, location, load), object-only subject, `<kind>：<value>` shape. See below. |
+| 6.5.0 | `rules/6.5.0.md` | A number that only qualifies another value (paired load, apparatus grade, restated setting) is its condition, not a row; a limit relative to another limit is A1 (`倍`), not D1. See below. |
 
-Default when no version is named: the newest released version (currently 6.3.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
+Default when no version is named: the newest released version (currently 6.5.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
 because rows were already saved under those labels.
+
+### 6.5.0 — 2026-10-16
+
+Found when the user reviewed `extract_metrics` on record 371 (GB/T 44700—2024) against the 6.4.0 run
+`20261016_085615` (claude-opus-5-5). Minor.
+
+- **Numbers that qualify another value (§3).** A paired load (B.1.4 静载荷力 300 N with 弯曲变形 ≤8 mm), an
+  apparatus grade (6.5.4.1 5 等量块 → `试验装置：5 等量块`) or a setting restated in the same clause (6.4.2.1
+  second 倾斜 10°) is part of the other value's condition, not a row. The extractor's mtc_21/76/92.
+- **Relative limits (A1, D1).** 5.5.2 repeatability "不应大于该类测试器材所允许误差的绝对值" is A1 (1 倍,
+  upper_bound), not a D1 pointer; the 6.4.0 run recorded it as D1 (c529). The extractor's mtc_8.
+
+The stored 6.4.0 gold runs are not changed. `extract_metrics` follows the same rules from candidates
+prompt v19 / enrich prompt v16 (ChenWeb jj `qpwu`).
 
 ### 6.4.0 — 2026-10-16
 

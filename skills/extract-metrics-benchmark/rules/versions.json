@@ -95,6 +95,12 @@
       "sha256": "9a7ada0a201a75a8e92774f6483a6b46d4ad1684cf5aefa9e84f626a64b78a2a",
       "released": "2026-10-16",
       "notes": "Same as 6.3.0 except conditions (§3): condition covers applicability, environment, operating state, test method or apparatus, location, load or time point; the subject names only the object; condition written as <kind>：<value> qualifiers; the same settings under two test methods are two metrics."
+    },
+    "6.5.0": {
+      "rules": "6.5.0.md",
+      "sha256": "0a69280db5d6a41c3421cf0304b3fb47881a0a6fd95a14e1b580e5cd43f31655",
+      "released": "2026-10-16",
+      "notes": "Same as 6.4.0 except: a number that only qualifies another value of its clause (a paired load, an apparatus grade, a restated setting) is that value's condition, not a row; a limit stated relative to another limit (1/10 of, equal to the absolute value of) is A1 with unit 倍, not a D1 pointer."
     }
   }
 }
