@@ -343,8 +343,8 @@ def validate(record, payload):
                     f'{metric["metric_id"]}: value_class reference is only for A3 delegations')
             require('interpretation_bound' not in tags or (
                         metric['value_class'] == 'definition' and
-                        metric['value_range_type'] in ('lower_bound', 'upper_bound')),
-                    f'{metric["metric_id"]}: interpretation_bound rows are definition bounds')
+                        metric['value_range_type'] in NUMERIC_RANGE_TYPES),
+                    f'{metric["metric_id"]}: interpretation_bound rows are numeric definitions')
             if gated_3:
                 require(kinds[0] not in PURE_REQUIREMENT_KINDS,
                         f'{metric["metric_id"]}: kind:{kinds[0]} has nothing to measure; '
@@ -391,6 +391,9 @@ def validate(record, payload):
                           'value_range_type', 'value_class', 'condition'))
         if not gated_6_2:                  # before 6.2.0 the same assertion at another location was a row
             identity += (tuple(sorted(spans)), json.dumps(table_rows, sort_keys=True))
+        else:
+            # The comparator includes strictness: <40 and ≤40 are different assertions.
+            identity += ('strict_bound' in tags,)
         require(identity not in identities,
                 'Duplicate assertion' if not gated_6_2 else
                 f'{metric["metric_id"]}: the same metric is stated more than once; keep one row and list '

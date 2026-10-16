@@ -304,6 +304,21 @@ under 1.0.0, about 64 hold up under the review).
 
 ## Tooling changes
 
+### 2026-10-16 — interpretation intervals and exact scale mappings
+
+Document 364 exposed a validator/contract restriction that rejected numeric interpretation ranges
+(for example `5 ≤ MEWS < 9`) and exact MEWS consciousness scores. A1 accepts numeric values and
+ranges, and the rules require one interval per assertion. The shared validator now accepts all
+four numeric range types on `interpretation_bound` definition rows, retaining the required
+definition text, matching kind, finite ordered range endpoints and rejection of nonnumeric rows.
+The procedure and payload contract explain exact scale mappings and preservation of half-open
+endpoints in source wording and annotation notes. Released rules and their hashes are unchanged;
+existing single-bound payloads keep validating. Regression tests cover intervals under 2.1.0 and
+6.4.0, exact scores, missing endpoints and nonnumeric rejection.
+The same document also exposed a false duplicate between `<40` and `≤40`: from rules 6.2.0,
+assertion identity now includes `strict_bound`, as the rules' same-comparator requirement implies.
+A regression test distinguishes these bounds while still rejecting a true repeated assertion.
+
 ### 2026-10-16 — condition_en in gold metrics
 
 `testbed.metrics.condition_en` (ChenWeb migration `20261016000002`) holds the English rendering of a

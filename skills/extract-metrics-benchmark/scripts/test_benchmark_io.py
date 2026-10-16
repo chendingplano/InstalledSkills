@@ -109,6 +109,19 @@ class BenchmarkIOTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.io.validate(self.record, self.payload)
 
+    def test_strict_and_inclusive_bounds_are_distinct_assertions(self):
+        self.payload = self.pinned('6.2.0')
+        second = copy.deepcopy(self.payload['metrics'][0])
+        second.update(metric_id='123_gold_2', threshold_or_target='Pressure shall be > 0.5 MPa.')
+        second['reasoning_tags'].append('strict_bound')
+        self.payload['metrics'].append(second)
+        self.payload['candidates'][0]['metric_ids'].append('123_gold_2')
+        self.assertEqual(len(self.io.validate(self.record, self.payload)), 2)
+        # Removing strictness leaves a genuine repeated assertion, which still fails.
+        second['reasoning_tags'].remove('strict_bound')
+        with self.assertRaisesRegex(ValueError, 'same metric is stated more than once'):
+            self.io.validate(self.record, self.payload)
+
     def test_range_requires_finite_ordered_endpoints(self):
         metric = self.payload['metrics'][0]
         metric.update(value_range_type='range', metric_value='0.5–0.8', value_min=0.5, value_max=0.8)
@@ -331,6 +344,37 @@ class BenchmarkIOTests(unittest.TestCase):
         payload['metrics'][0].update(value_class='reference', formula_or_definition='',
                                      reasoning_tags=['interpretation_bound', 'kind:metric_value'])
         with self.assertRaises(ValueError):
+            self.io.validate(self.record, payload)
+
+    def test_interpretation_interval_preserves_one_assertion_and_endpoints(self):
+        for version in ('2.1.0', '6.4.0'):
+            with self.subTest(version=version):
+                payload = self.pinned(version)
+                metric = payload['metrics'][0]
+                metric.update(value_class='definition', value_range_type='range',
+                              metric_value='0.5~0.8', value_min=0.5, value_max=0.8,
+                              formula_or_definition='0.5 ≤ pressure < 0.8 MPa means intermediate',
+                              threshold_or_target='0.5 ≤ pressure < 0.8 MPa means intermediate',
+                              reasoning_tags=['interpretation_bound', 'kind:metric_definition'])
+                rows = self.io.validate(self.record, payload)
+                self.assertEqual(len(rows), 1)
+                self.assertEqual((rows[0]['value_min'], rows[0]['value_max']), (0.5, 0.8))
+                self.assertIn('< 0.8', rows[0]['threshold_or_target'])
+                metric['value_max'] = None
+                with self.assertRaisesRegex(ValueError, 'Invalid range endpoints'):
+                    self.io.validate(self.record, payload)
+
+    def test_interpretation_exact_score_and_non_numeric_rejection(self):
+        metric = self.payload['metrics'][0]
+        metric.update(value_class='definition', value_range_type='exact', metric_value='2',
+                      formula_or_definition='Responds to pain corresponds to consciousness score 2',
+                      reasoning_tags=['interpretation_bound', 'kind:metric_definition'])
+        rows = self.io.validate(self.record, self.payload)
+        self.assertEqual(rows[0]['metric_value'], '2')
+        payload = self.pinned('2.1.0')
+        payload['metrics'][0].update(value_range_type='qualitative', metric_value='',
+                                     metric_unit='', is_explicit_metric=False)
+        with self.assertRaisesRegex(ValueError, 'interpretation_bound'):
             self.io.validate(self.record, payload)
 
     def test_rules_2_1_cited_doc_identifier_has_a_space(self):
