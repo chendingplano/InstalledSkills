@@ -31,9 +31,23 @@ Two kinds of change are tracked separately:
 | 6.5.0 | `rules/6.5.0.md` | A number that only qualifies another value (paired load, apparatus grade, restated setting) is its condition, not a row; a limit relative to another limit is A1 (`倍`), not D1. See below. |
 | 6.6.0 | `rules/6.6.0.md` | A value the source does not state as a quantity (a derived count of ends/positions, a reset-to-zero instruction) is excluded as X19. See below. |
 | 6.7.0 | `rules/6.7.0.md` | A number inside a definition is A1 only when it limits a measured property of the document's object; category boundaries of the people or things the object is for, and counting conventions, are X3. See below. |
+| 6.8.0 | `rules/6.8.0.md` | A size written as a product of dimensions (250 mm×200 mm) is one row `250×200`, with one tolerance row; separately stated dimensions stay split. See below. |
 
-Default when no version is named: the newest released version (currently 6.7.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
+Default when no version is named: the newest released version (currently 6.8.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
 because rows were already saved under those labels.
+
+### 6.8.0 — 2026-10-17
+
+Found when the user reviewed `extract_metrics` on record 371 (GB/T 44700—2024) against the 6.7.0 run
+`20261017_070046` (claude-sonnet-5-5). Minor.
+
+- **Product sizes (§3, Splitting).** "250 mm×200 mm 的面" and "底座尺寸为长300 mm×宽 300 mm" are one
+  property each, the size: one row, `metric_value` `250×200` / `300×300`, unit once, `exact`, and one
+  row for a tolerance that serves the size. Dimensions stated separately stay one row each. The 6.7.0
+  run kept 250×200 mm as one row (256) but split 底座长度 / 底座宽度 (172/173).
+
+The stored 6.7.0 run is not changed; its corrected copy is a separate 6.8.0 run. `extract_metrics`
+follows the ruling from candidates prompt v25 / enrich prompt v23 (ChenWeb).
 
 ### 6.7.0 — 2026-10-17
 

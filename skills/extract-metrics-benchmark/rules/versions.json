@@ -113,6 +113,12 @@
       "sha256": "1412fad1a488993ce85ad301655173e26dc8eea4ce03cde748c8a70506d98866",
       "released": "2026-10-17",
       "notes": "Same as 6.6.0 except: the X3 exception (a number inside a definition is A1) applies only when the defined term is a class of the document's object and the number limits a property measured on it; a category boundary of the people or things the object is for (age bands) and a counting or unit convention (360° per turn) are X3."
+    },
+    "6.8.0": {
+      "rules": "6.8.0.md",
+      "sha256": "d079f2a5ea06b56335aa62483b844df02b5c5b24ca1bca4d916eb93ff58f3d5e",
+      "released": "2026-10-17",
+      "notes": "Same as 6.7.0 except: a size written as a product of dimensions (250 mm×200 mm, 长300 mm×宽300 mm) is one row with metric_value a×b, unit once, exact, and one row for a tolerance serving it; separately stated dimensions stay one row each."
     }
   }
 }
