@@ -30,9 +30,28 @@ Two kinds of change are tracked separately:
 | 6.4.0 | `rules/6.4.0.md` | Conditions read broadly (test method or apparatus, environment, population, location, load), object-only subject, `<kind>：<value>` shape. See below. |
 | 6.5.0 | `rules/6.5.0.md` | A number that only qualifies another value (paired load, apparatus grade, restated setting) is its condition, not a row; a limit relative to another limit is A1 (`倍`), not D1. See below. |
 | 6.6.0 | `rules/6.6.0.md` | A value the source does not state as a quantity (a derived count of ends/positions, a reset-to-zero instruction) is excluded as X19. See below. |
+| 6.7.0 | `rules/6.7.0.md` | A number inside a definition is A1 only when it limits a measured property of the document's object; category boundaries of the people or things the object is for, and counting conventions, are X3. See below. |
 
-Default when no version is named: the newest released version (currently 6.6.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
+Default when no version is named: the newest released version (currently 6.7.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
 because rows were already saved under those labels.
+
+### 6.7.0 — 2026-10-17
+
+Found when the user reviewed the 6.6.0 gold for record 371 (GB/T 44700—2024), run `20261017_060405`
+(a corrected copy of `20261016_162743`, gpt-6.1-sol). Minor.
+
+- **Where the X3 "aggressive" exception stops.** The 6.6.0 run accepted the age bands of 4 注 1
+  (年龄分组（幼儿）3~6 周岁 … 老年人 60~79 周岁, subject 测试人群, rows 242–245) and the counting
+  convention of 6.5.21.3 (绳转动角度 360°, row 461) as A1. The 6.3.0–6.5.0 runs excluded the same lines
+  (X3/X5). The rules allowed both readings: X3 said a number inside a definition that is a value of
+  a named quantity is A1 "aggressively", with no limit. Now it is A1 only when the defined term is a
+  class of the thing the document specifies, measures or tests and the number limits a property
+  measured on that thing (高滑移 stays A1). A category boundary of the people or things the object is
+  for, and a counting, naming or unit convention, are X3; the category or convention goes into the
+  `condition` of the rows it limits. A value required of a person, sample or population stays A1.
+  The audit (§4) gains a check for `definition` rows and numbers in notes and "为/称为/计为" sentences.
+
+The stored 6.6.0 runs are not changed.
 
 ### 6.6.0 — 2026-10-16
 

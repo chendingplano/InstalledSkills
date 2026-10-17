@@ -107,6 +107,12 @@
       "sha256": "345368e26de14928d169f590041ddf675794482d9b7213e9e361109642bd4cc1",
       "released": "2026-10-16",
       "notes": "Same as 6.5.0 except: a value the source does not state as a quantity (a derived count of ends/positions, a reset-to-zero instruction) is excluded as X19, not a metric."
+    },
+    "6.7.0": {
+      "rules": "6.7.0.md",
+      "sha256": "1412fad1a488993ce85ad301655173e26dc8eea4ce03cde748c8a70506d98866",
+      "released": "2026-10-17",
+      "notes": "Same as 6.6.0 except: the X3 exception (a number inside a definition is A1) applies only when the defined term is a class of the document's object and the number limits a property measured on it; a category boundary of the people or things the object is for (age bands) and a counting or unit convention (360° per turn) are X3."
     }
   }
 }
