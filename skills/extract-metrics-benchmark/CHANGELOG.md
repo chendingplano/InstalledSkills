@@ -33,9 +33,37 @@ Two kinds of change are tracked separately:
 | 6.7.0 | `rules/6.7.0.md` | A number inside a definition is A1 only when it limits a measured property of the document's object; category boundaries of the people or things the object is for, and counting conventions, are X3. See below. |
 | 6.8.0 | `rules/6.8.0.md` | A size written as a product of dimensions (250 mm×200 mm) is one row `250×200`, with one tolerance row; separately stated dimensions stay split. See below. |
 | 6.8.1 | `rules/6.8.1.md` | Wording only: a tolerance cell serving several listed quantities is one row per quantity, with its qualifiers. See below. |
+| 7.0.0 | `rules/7.0.0.md` | Modality is not part of the metric gate: a 可/宜/建议/酌情/考虑 clause that states a number is A1/A6 (X8 narrowed to clauses with no value); X1 excludes the action, not its numbers; new §2.6 for treatment protocols and procedures. See below. |
 
-Default when no version is named: the newest released version (currently 6.8.1); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
+Default when no version is named: the newest released version (currently 7.0.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
 because rows were already saved under those labels.
+
+### 7.0.0 — 2026-10-17
+
+Major (which assertions are metrics changes). Found by auditing the 6.8.1 run `20261017_135026`
+(claude-sonnet-5-5) of record 364 (WS/T 810—2022, emergency referral with clinical appendices)
+against `kb.metrics`: 59 of the extractor's 139 rows were true metrics the gold missed (drug doses,
+repeat intervals and counts, caps, infusion and observation times, thresholds). The ledger excluded
+24 candidates covering them as X8 (permissive modality) and a few as X1. The gold was inconsistent
+inside single sentences (洛贝林 3 mg accepted, the repeat interval of the same sentence excluded;
+a plain-imperative diazepam dose accepted, a 可应用 cardioversion energy excluded).
+
+- **X8 narrowed (§2.3).** Applies only to a permissive clause that states no value. A number in a
+  可/宜/建议/酌情/考虑/尽量 clause is A1/A6; the modality is kept in `threshold_or_target`. The gate
+  (§2.1) now says modality is not part of it.
+- **X1 narrowed (§2.3).** Excludes the action, not a number stated in it.
+- **§2.6 Treatment protocols, clinical pathways and operating procedures (new).** Table of what is a
+  row: dose/amount per agent and population, caps, duration, repeat interval and repeat count,
+  device energy/setting, observation or waiting time, trigger/discharge/transfer thresholds (a
+  two-sided range is one `range` row), preparation quantities. Not rows: formulation labels
+  (1:1000, 5％), actions, bare score values without their band, grade labels.
+- **Audit (§4).** No X8/X1 candidate may state a number; a modality word governs the whole sentence,
+  so one sentence gets one treatment.
+
+Not changed, deliberately: a bound given only as a formula (SBP < 70 + age×2) stays X18, and a
+scale of qualitative states with points (AVPU) stays out. Both were also among the 59 and are the
+user's earlier rulings (6.0.0), to revisit separately. The stored 6.8.1 run is not changed.
+Tooling is unchanged; the validator accepts 7.0.0 as it did 6.8.1.
 
 ### 6.8.1 — 2026-10-17
 

@@ -125,6 +125,12 @@
       "sha256": "f6c9fbfe8f4908515336da132c9eb9d2404d866dd318b12e503e14ed008d086d",
       "released": "2026-10-17",
       "notes": "Same as 6.8.0 (wording only): a tolerance or resolution cell written once for several listed quantities gives one row per quantity, named after it and with its qualifiers, never one row for the whole cell."
+    },
+    "7.0.0": {
+      "rules": "7.0.0.md",
+      "sha256": "267fccb5a398740c9d9562d06b137582e2729709385f63f562b90f6457128142",
+      "released": "2026-10-17",
+      "notes": "A permissive clause (可/宜/建议/酌情/考虑) that states a number is no longer X8: its dose, interval, duration, cap or threshold is A1/A6. X1 excludes the action, not its numbers. New section 2.6 for treatment protocols and procedures."
     }
   }
 }
