@@ -145,8 +145,9 @@ date.
 | 6.6.0 | `rules/6.6.0.md` | 2026-10-16 | **No derived values.** A count the reader works out from "两端" or "四角和中心", and a "set to zero" instruction, are not metrics (X19). |
 | 6.7.0 | `rules/6.7.0.md` | 2026-10-17 | **Definitions stay definitions.** A number that only says what a word means — an age band naming a user group ("3～6 周岁为幼儿"), a counting rule ("360° 计一圈") — is not a metric. A threshold on something measured on the document's object still is. |
 | 6.8.0 | `rules/6.8.0.md` | 2026-10-17 | **One size, one row.** A size written as a product ("250 mm×200 mm") is one metric `250×200 mm`, not a length and a width. |
+| 6.8.1 | `rules/6.8.1.md` | 2026-10-17 | Wording only: a ±5 mm written once for several sizes gives one tolerance per size. |
 
-**If you don't name a version, the newest one is used** (the highest version number; currently 6.8.0).
+**If you don't name a version, the newest one is used** (the highest version number; currently 6.8.1).
 Draft versions marked as pre-releases, such as `2.0.0-rc.1`, are used only when you name them. The
 assistant tells you which version it used.
 
@@ -229,6 +230,7 @@ instructions from this skill. Judge it as a human domain expert.
 
 | Version | Timestamp | Author | Reason | Summary |
 |---|---|---|---|---|
+| 1.18 | 2026-10-17T10:30:00-05:00 | Not specified (drafted by Claude Code) | Rules version 6.8.1 released | Added 6.8.1 to Available versions; it is now the default. |
 | 1.17 | 2026-10-17T09:30:00-05:00 | Not specified (drafted by Claude Code) | Rules version 6.8.0 released | Added 6.8.0 to Available versions; it is now the default. |
 | 1.16 | 2026-10-17T10:00:00-05:00 | Not specified (drafted by Claude Code) | Rules version 6.7.0 released | Added 6.7.0 to Available versions; it is now the default. Corrected the stated default (was 6.4.0). |
 | 1.15 | 2026-10-16T06:00:00-05:00 | Not specified (drafted by Claude Code) | Rules version 6.4.0 released | Added 6.4.0 to Available versions; it is now the default. |

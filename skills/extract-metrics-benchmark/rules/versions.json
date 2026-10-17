@@ -119,6 +119,12 @@
       "sha256": "d079f2a5ea06b56335aa62483b844df02b5c5b24ca1bca4d916eb93ff58f3d5e",
       "released": "2026-10-17",
       "notes": "Same as 6.7.0 except: a size written as a product of dimensions (250 mm×200 mm, 长300 mm×宽300 mm) is one row with metric_value a×b, unit once, exact, and one row for a tolerance serving it; separately stated dimensions stay one row each."
+    },
+    "6.8.1": {
+      "rules": "6.8.1.md",
+      "sha256": "f6c9fbfe8f4908515336da132c9eb9d2404d866dd318b12e503e14ed008d086d",
+      "released": "2026-10-17",
+      "notes": "Same as 6.8.0 (wording only): a tolerance or resolution cell written once for several listed quantities gives one row per quantity, named after it and with its qualifiers, never one row for the whole cell."
     }
   }
 }

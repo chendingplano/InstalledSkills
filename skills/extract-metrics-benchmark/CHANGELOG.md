@@ -32,9 +32,17 @@ Two kinds of change are tracked separately:
 | 6.6.0 | `rules/6.6.0.md` | A value the source does not state as a quantity (a derived count of ends/positions, a reset-to-zero instruction) is excluded as X19. See below. |
 | 6.7.0 | `rules/6.7.0.md` | A number inside a definition is A1 only when it limits a measured property of the document's object; category boundaries of the people or things the object is for, and counting conventions, are X3. See below. |
 | 6.8.0 | `rules/6.8.0.md` | A size written as a product of dimensions (250 mm×200 mm) is one row `250×200`, with one tolerance row; separately stated dimensions stay split. See below. |
+| 6.8.1 | `rules/6.8.1.md` | Wording only: a tolerance cell serving several listed quantities is one row per quantity, with its qualifiers. See below. |
 
-Default when no version is named: the newest released version (currently 6.8.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
+Default when no version is named: the newest released version (currently 6.8.1); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
 because rows were already saved under those labels.
+
+### 6.8.1 — 2026-10-17
+
+Patch (wording; outcomes unchanged). The 6.7.0 run of record 371 merged the shared ±5 mm cells of
+Table 1 into one row per cell (障碍物尺寸允许误差, 平衡木尺寸允许误差), against §3's one property per row.
+6.8.1 says it outright: a tolerance or resolution cell written once for several listed quantities
+gives one row per quantity, named after it and with its qualifiers. Audit (§4) check added.
 
 ### 6.8.0 — 2026-10-17
 
