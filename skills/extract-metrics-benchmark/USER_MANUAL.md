@@ -147,8 +147,9 @@ date.
 | 6.8.0 | `rules/6.8.0.md` | 2026-10-17 | **One size, one row.** A size written as a product ("250 mm×200 mm") is one metric `250×200 mm`, not a length and a width. |
 | 6.8.1 | `rules/6.8.1.md` | 2026-10-17 | Wording only: a ±5 mm written once for several sizes gives one tolerance per size. |
 | 7.0.0 | `rules/7.0.0.md` | 2026-10-17 | A dose, interval, duration, cap or threshold written with 可/宜/建议/酌情/考虑 is a metric like any other (X8 only for clauses with no number); X1 excludes the action, not its numbers; new section for treatment protocols and procedures. |
+| 7.1.0 | `rules/7.1.0.md` | 2026-10-17 | A bound written as a function of case parameters only (such as 收缩压＜70+年龄×2) is a metric, not a value-less formula; a formula containing a measured quantity is still excluded. |
 
-**If you don't name a version, the newest one is used** (the highest version number; currently 7.0.0).
+**If you don't name a version, the newest one is used** (the highest version number; currently 7.1.0).
 Draft versions marked as pre-releases, such as `2.0.0-rc.1`, are used only when you name them. The
 assistant tells you which version it used.
 
@@ -231,6 +232,7 @@ instructions from this skill. Judge it as a human domain expert.
 
 | Version | Timestamp | Author | Reason | Summary |
 |---|---|---|---|---|
+| 1.20 | 2026-10-17T16:10:00-05:00 | Not specified (drafted by Claude Code) | Rules version 7.1.0 released | Added 7.1.0 to Available versions; it is now the default. |
 | 1.19 | 2026-10-17T14:30:00-05:00 | Not specified (drafted by Claude Code) | Rules version 7.0.0 released | Added 7.0.0 to Available versions (modality is not part of the metric gate); it is now the default. |
 | 1.18 | 2026-10-17T10:30:00-05:00 | Not specified (drafted by Claude Code) | Rules version 6.8.1 released | Added 6.8.1 to Available versions; it is now the default. |
 | 1.17 | 2026-10-17T09:30:00-05:00 | Not specified (drafted by Claude Code) | Rules version 6.8.0 released | Added 6.8.0 to Available versions; it is now the default. |

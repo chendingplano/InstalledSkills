@@ -34,9 +34,28 @@ Two kinds of change are tracked separately:
 | 6.8.0 | `rules/6.8.0.md` | A size written as a product of dimensions (250 mm×200 mm) is one row `250×200`, with one tolerance row; separately stated dimensions stay split. See below. |
 | 6.8.1 | `rules/6.8.1.md` | Wording only: a tolerance cell serving several listed quantities is one row per quantity, with its qualifiers. See below. |
 | 7.0.0 | `rules/7.0.0.md` | Modality is not part of the metric gate: a 可/宜/建议/酌情/考虑 clause that states a number is A1/A6 (X8 narrowed to clauses with no value); X1 excludes the action, not its numbers; new §2.6 for treatment protocols and procedures. See below. |
+| 7.1.0 | `rules/7.1.0.md` | A bound written as a function of case parameters only (age, weight, body surface area, model, grade, rated power), such as 收缩压＜70+年龄×2, is A1, not X18; a formula with a measured quantity stays X18. See below. |
 
-Default when no version is named: the newest released version (currently 7.0.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
+Default when no version is named: the newest released version (currently 7.1.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
 because rows were already saved under those labels.
+
+### 7.1.0 — 2026-10-17
+
+Minor (one class of candidate moves from X18 to A1). Ruled by the user on 2026-10-17 after the 7.0.0
+review of record 364: `364_mtc_68` ("1岁≤年龄＜11岁，收缩压＜（70+年龄×2）mmHg") is a true metric. The
+6.8.1 gold accepted the infant (70 mmHg) and ≥11 (90 mmHg) limits of the same hypotension list and
+excluded this one under X18's "a bound whose value is only a formula".
+
+- **X18 (§2.3, §2.1 (c), §3.2).** A bound written as a function of **case parameters only** (age,
+  weight, body surface area, gestational age, model, grade, rated power; every variable known or set
+  before the check) has a definite value for every case: A1, `metric_value` the expression as
+  written (`70+年龄×2`), `upper_bound`/`lower_bound`, the parameter range in `condition`. A formula
+  that also contains a quantity measured in the test or on the object (τ ≥ (200×Δt_i×C)/P) stays X18.
+- **Audit (§4).** X18 candidates are re-checked for case-parameter-only formulas; sibling limits of
+  one list or table are decided alike.
+
+Not changed: scales of qualitative states with points (the MEWS consciousness levels,
+`364_mtc_136`–`139`) stay out. The stored 6.8.1 and 7.0.0 runs are not changed. Tooling unchanged.
 
 ### 7.0.0 — 2026-10-17
 

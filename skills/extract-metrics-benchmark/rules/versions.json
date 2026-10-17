@@ -131,6 +131,12 @@
       "sha256": "267fccb5a398740c9d9562d06b137582e2729709385f63f562b90f6457128142",
       "released": "2026-10-17",
       "notes": "A permissive clause (可/宜/建议/酌情/考虑) that states a number is no longer X8: its dose, interval, duration, cap or threshold is A1/A6. X1 excludes the action, not its numbers. New section 2.6 for treatment protocols and procedures."
+    },
+    "7.1.0": {
+      "rules": "7.1.0.md",
+      "sha256": "336c730e2900db150fce95ba122e7e774b671a98bc4fe8c809ba375ff0edcc2f",
+      "released": "2026-10-17",
+      "notes": "Same as 7.0.0 except: a bound written as a function of case parameters only (age, weight, body surface area, model, grade, rated power), such as 收缩压＜70+年龄×2, is A1 with the expression as metric_value and the parameter range in condition, not X18. A formula that contains a measured quantity stays X18."
     }
   }
 }
