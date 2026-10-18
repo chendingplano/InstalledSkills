@@ -59,6 +59,7 @@ Populate the prepared payload; retain its ID/path/hash/run ID/skill name/skill v
     "location_type": "sentence",
     "metric_unit": "MPa",
     "metric_value": "0.5",
+    "value_structure": null,
     "value_data_type": "number",
     "value_range_type": "lower_bound",
     "value_class": "requirement",
@@ -66,6 +67,7 @@ Populate the prepared payload; retain its ID/path/hash/run ID/skill name/skill v
     "value_max": null,
     "condition": "",
     "condition_en": null,
+    "frame": null,
     "formula_or_definition": "",
     "threshold_or_target": "Pressure shall be ≥ 0.5 MPa.",
     "measurement_frequency": "",
@@ -114,6 +116,8 @@ are distinct assertions even when their other identity fields match.
 | `value_min`, `value_max` | Finite JSON numbers for range only, lower ≤ upper |
 | `condition` | Source-stated applicability; empty if absent. From rules 6.4.0 every stated qualifier of the value (applicability, environment, operating state, test method or apparatus, location, load, time point) as `<kind>：<value>` parts joined by `；` |
 | `condition_en` | English rendering of `condition` for non-English sources, same shape (`<kind>: <value>` joined by `; `); null for English sources. Required from rules 6.4.0 whenever `condition` is non-empty |
+| `value_structure` (rules ≥ 10.0.0) | null for scalar/interval/tolerance; otherwise `{kind, values}` where kind is `alternatives`, `required_points`, `composite`, `expression` or `unresolved`, and values are nonempty canonical strings for collections/composites (at least two); omit values for expression/unresolved and keep the complete expression in metric_value. Collections have at least two distinct members, `exact` range type and no endpoints. Keep the complete display expression in `metric_value`; comparison checks the relationship and every member. Older versions store null. Verify this field during saved-row read-back. |
+| `frame` (rules ≥ 9.0.0) | null, or `{uses, method, procedure}` as in `kb.metrics.frame`: `uses` = resources `{role, name, name_en, spec: [{property, property_en, value, unit}]}` with `role` one of agent, material, apparatus, reagent, medium, sample, device and `name` without its strength; `method` = `[{label, value, label_en, value_en}]`; `procedure` = `{step, stage, stage_en, after, after_en}`. From 9.0.0 `condition` holds none of the labels 试验装置, 试验设备, 试验介质, 溶媒, 试剂, 药物, 试验方法, 检验方法, 给药途径, 给药方式, 给氧方式, 操作, 治疗阶段, 用药时机, 药物浓度 |
 | `source_line_spans` | Original `N`/`N:M` strings; no page numbers or row suffixes |
 | `source_table_rows` | `[{"line": 116, "rows": ["r1"]}]`; optional verified `row_hash` map in production form |
 | `confidence` | Finite number 0–1; never substitutes for review |
@@ -121,9 +125,42 @@ are distinct assertions even when their other identity fields match.
 | `metric_categories` | One or more meaningful keys, never hierarchy paths |
 | `annotation_notes` | Optional source-interpretation, tolerance/comparator, table-context or category rationale; saved in `ext_info` |
 
-For non-English sources add applicable `metric_name_en`, `metric_subject_en`, `metric_desc_en`, `metric_context_en`, `metric_keywords_en`, `metric_unit_en`, `value_class_en`, `condition_en`. English rows store them null. The helper supplies document/run IDs, filename/hash, `skill_name` (from `SKILL.md` frontmatter `name`), `skill_version` and `rules_sha256` (from `prepare --skill-version`, checked against `rules/versions.json`; validation fails for an unknown version or an edited released rules file; the hash is kept in the run row), `model_name` (from `prepare --model-name`; required) and per-row `ext_info` (schema version `3`: `evidence`, `annotation_notes`, and `candidate_ids`, the ledger entries that accepted or duplicate the row). The run's audit record (language, rules hash, title/doc number, `coverage`, `candidates`, reviews, `reviewed_at`) is stored once, in `testbed.metric_benchmark_runs`, not on every row. Title/doc number use `doc_metadata` with top-level fallback. It records only the model ID it is given and generates no prompt claims or production event IDs.
+For non-English sources add applicable `metric_name_en`, `metric_subject_en`, `metric_desc_en`, `metric_context_en`, `metric_keywords_en`, `metric_unit_en`, `value_class_en`, `condition_en` (and, from rules 9.0.0, the `_en` fields inside `frame`). English rows store them null. The helper supplies document/run IDs, filename/hash, `skill_name` (from `SKILL.md` frontmatter `name`), `skill_version` and `rules_sha256` (from `prepare --skill-version`, checked against `rules/versions.json`; validation fails for an unknown version or an edited released rules file; the hash is kept in the run row), `model_name` (from `prepare --model-name`; required) and per-row `ext_info` (schema version `3`: `evidence`, `annotation_notes`, and `candidate_ids`, the ledger entries that accepted or duplicate the row). The run's audit record (language, rules hash, title/doc number, `coverage`, `candidates`, reviews, `reviewed_at`) is stored once, in `testbed.metric_benchmark_runs`, not on every row. Title/doc number use `doc_metadata` with top-level fallback. It records only the model ID it is given and generates no prompt claims or production event IDs.
+
+## Structured values (rules 10.0.0)
+
+Keep the full display expression and its unit separate from relationship metadata:
+
+```json
+{
+  "metric_value": "10, 20 or 30",
+  "metric_unit": "mm",
+  "value_range_type": "exact",
+  "value_min": null,
+  "value_max": null,
+  "value_structure": {"kind": "alternatives", "values": ["10", "20", "30"]}
+}
+```
+
+Use `required_points` when every listed inspection point is mandatory, `composite` for ordered
+dimensions, and `expression`/`unresolved` for a complete expression whose scalar interpretation
+is unsupported or whose relationship is unclear. The latter two need no `values` array.
+Conditional values that are independently stated remain separate metrics with their own condition
+and frame. A valid collection is one benchmark row; no split is needed to accommodate a numeric
+consumer. Source ambiguity belongs in `annotation_notes` with the complete evidence, not an
+invented relation. The existing rule that uncertain candidate decisions block saving still applies.
+
+Validation checks the kind, member types/cardinality, duplicates in unordered collections,
+agreement with the complete display (including full-width numerals), and absence of interval
+endpoints on discrete collections. Composite numeric order and repeated dimensions are preserved.
+Read saved rows back and compare these fields explicitly; do not verify counts alone.
 
 ## Table provisioning and save
+
+The current helper writes nullable `value_structure`, including SQL NULL for older rule versions.
+Apply `ChenWeb/project_migrations/20261018000003_add_metric_value_structure.sql` before using its
+save path; this adds the field to `testbed.metrics` and `kb.metrics`. Old benchmark runs remain
+unchanged. This skill update does not itself authorize a production deployment or migration.
 
 Committed schema: `ChenWeb/project_migrations/20261006000001_create_testbed_metrics.sql`, plus `20261006000002_add_skill_version_to_testbed_metrics.sql` (`skill_version TEXT NOT NULL`; rows saved before versioning were backfilled as `1.0.0`), plus `20261006000003_add_skill_and_model_name_to_testbed_metrics.sql` (`skill_name`, `model_name`, both `TEXT NOT NULL`; run `22aa157c` backfilled as `extract-metrics-benchmark` / `gpt-6.1-sol`), `20261006000004_timestamp_run_id_for_testbed_metrics.sql` (`yyyymmdd_hhmmss` run IDs), `20261007000001_allow_metric_with_no_value_in_testbed_metrics.sql` (`value_class` `metric-with-no-value`) and `20261007000002_metric_benchmark_runs_for_testbed_metrics.sql` (`testbed.metric_benchmark_runs`, one row per run, primary key = the run key; `testbed.metrics` references it; runs saved earlier were moved there and their rows reduced to schema `3` `ext_info`). Startup runs project migrations through `server/cmd/config/config.go`. Use the Goose project track, `ChenWeb/project_migrations`, and existing `project_db_migration` version table. Follow db-migration skill guidance for credentials/execution; never test rollback against valuable benchmark data. The schema excludes production search indexes/triggers/category side effects.
 

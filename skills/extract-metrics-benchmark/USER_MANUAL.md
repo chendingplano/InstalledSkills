@@ -5,17 +5,25 @@
 | title | Extract Metrics Benchmark — User Manual |
 | language | en |
 | format | markdown |
-| version | 1.11 |
+| version | 1.24 |
 | status | Draft |
 | author | Not specified |
 | owner | Not specified |
 | audience | People who run or review gold-metric benchmarks through a coding assistant; no programming needed |
 | create-time | 2026-10-06T08:30:04-05:00 |
-| last-modify-time | 2026-10-09T10:00:00-05:00 |
+| last-modify-time | 2026-10-19 |
 | keywords | gold metrics, benchmark, ground truth, extract_metrics, metric extraction quality, testbed.metrics, skill version, rules version, Claude Code, Codex, compare versions |
 
-This manual has its own version number (1.5), which is separate from the skill's rules versions listed
+This manual has its own version number (1.24), which is separate from the skill's rules versions listed
 under [Available versions](#available-versions).
+
+Rules 10.0.0 keep valid alternatives and mandatory point collections together. For example,
+“10, 20 or 30 mm” is one alternatives set; “inspect at 10, 30 and 50 mm” is one collection of
+required points. Values for separate conditions, such as male/female heights, remain separate
+rows. The stored `value_structure` records this distinction; a consumer's numeric limitations
+are not a reason to change the source's meaning. Earlier explicitly selected versions retain
+their original rules. The database needs migration `20261018000003` before saving with the
+updated helper. Existing saved benchmarks are not automatically rewritten.
 
 ## 1. What this skill is
 
@@ -149,8 +157,10 @@ date.
 | 7.0.0 | `rules/7.0.0.md` | 2026-10-17 | A dose, interval, duration, cap or threshold written with 可/宜/建议/酌情/考虑 is a metric like any other (X8 only for clauses with no number); X1 excludes the action, not its numbers; new section for treatment protocols and procedures. |
 | 7.1.0 | `rules/7.1.0.md` | 2026-10-17 | A bound written as a function of case parameters only (such as 收缩压＜70+年龄×2) is a metric, not a value-less formula; a formula containing a measured quantity is still excluded. |
 | 8.0.0 | `rules/8.0.0.md` | 2026-10-18 | **Triggers, "any one of", alternatives, 180/110.** A number about the case that decides whether to act (抽搐超过5min, 年龄≥75岁 to upgrade, 近2周外伤史), even in a heading, is a metric of its own; a method chosen by age group is not. "符合任何1项" is not a metric, "2种以上表现" is. "沙丁胺醇或特布他林 2.5～5mg" is one row per drug; "180/110mmHg" is two rows. |
+| 9.0.0 | `rules/9.0.0.md` | 2026-10-18 | **The metric frame.** A metric now records what it uses (a drug with its strength, an apparatus with its grade), its method (a test method, a route) and its step, apart from its conditions. The strength of the product a dose uses ("50％葡萄糖") is no longer a metric of its own, unless the document specifies that product. |
+| 10.0.0 | `rules/10.0.0.md` | 2026-10-18 | **Preserve value relationships.** Split only independent assertions with their conditions and frame. Available diameters 10, 20 or 30 mm remain one alternatives metric; required inspection points remain one required collection. Structured values retain every member and its relationship; uncertain lists remain unresolved. |
 
-**If you don't name a version, the newest one is used** (the highest version number; currently 8.0.0).
+**If you don't name a version, the newest one is used** (the highest version number; currently 10.0.0).
 Draft versions marked as pre-releases, such as `2.0.0-rc.1`, are used only when you name them. The
 assistant tells you which version it used.
 
@@ -233,6 +243,9 @@ instructions from this skill. Judge it as a human domain expert.
 
 | Version | Timestamp | Author | Reason | Summary |
 |---|---|---|---|---|
+| 1.24 | 2026-10-19 | Codex | Clarify semantic collections | Explain independent assertion boundaries, consumer limitations, structured-value storage and migration prerequisite. Frozen annotation rules are unchanged. |
+| 1.23 | 2026-10-18T12:00:00-05:00 | Codex | Rules version 10.0.0 released | Added semantic granularity and structured collections; it is now the default. Earlier versions remain runnable. |
+| 1.22 | 2026-10-18T11:00:00-05:00 | Not specified (drafted by Claude Code) | Rules version 9.0.0 released | Added 9.0.0 to Available versions; it is now the default. |
 | 1.21 | 2026-10-18T10:00:00-05:00 | Not specified (drafted by Claude Code) | Rules version 8.0.0 released | Added 8.0.0 to Available versions; it is now the default. |
 | 1.20 | 2026-10-17T16:10:00-05:00 | Not specified (drafted by Claude Code) | Rules version 7.1.0 released | Added 7.1.0 to Available versions; it is now the default. |
 | 1.19 | 2026-10-17T14:30:00-05:00 | Not specified (drafted by Claude Code) | Rules version 7.0.0 released | Added 7.0.0 to Available versions (modality is not part of the metric gate); it is now the default. |

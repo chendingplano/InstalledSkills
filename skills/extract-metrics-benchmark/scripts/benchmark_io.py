@@ -13,6 +13,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import unicodedata
 
 
 TEXT_FIELDS = '''metric_id metric_name metric_subject metric_desc metric_context
@@ -27,6 +28,11 @@ CLASSES = {'observation', 'requirement', 'target', 'reference', 'design_capabili
 # Rules 4.1.0+: an A4 row (value left to a declaration or agreement) is a metric with no value.
 # Benchmark-only: kb.metrics stores the same assertion as requirement + limit_absent.
 NO_VALUE_CLASS = 'metric-with-no-value'
+# Rules 9.0.0+: the metric frame (ChenWeb openspec change metric-frame, kb.metrics.frame).
+FRAME_ROLES = {'agent', 'material', 'apparatus', 'reagent', 'medium', 'sample', 'device'}
+# Qualifier labels that are frame facets from 9.0.0 on, never conditions.
+FRAME_CONDITION_LABELS = {'试验装置', '试验设备', '试验介质', '溶媒', '试剂', '药物', '试验方法', '检验方法',
+                          '给药途径', '给药方式', '给氧方式', '操作', '治疗阶段', '用药时机', '药物浓度'}
 NO_VALUE_CLASS_EN = 'metric with no value'
 TYPICAL_VALUE_MARKERS = ('典型值（领域经验，非本文件规定）：',
                          'Typical values (domain knowledge, not stated by this document):')
@@ -214,6 +220,86 @@ def expand_spans(spans, lines):
     return set(expanded)
 
 
+def validate_frame(metric, language):
+    """Rules 9.0.0+: frame is null or {uses, method, procedure} in the kb.metrics.frame shape."""
+    frame, mid = metric.get('frame'), metric['metric_id']
+    if frame is None:
+        return None
+    require(isinstance(frame, dict), f'{mid}: frame must be an object or null')
+    unknown = sorted(set(frame) - {'uses', 'method', 'procedure'})
+    require(not unknown, f'{mid}: unknown frame keys {unknown}')
+    english = language.lower() == 'en'
+    for res in frame.get('uses') or []:
+        require(isinstance(res, dict) and isinstance(res.get('name'), str) and res['name'].strip(),
+                f'{mid}: every frame.uses entry needs a name')
+        require(res.get('role') in FRAME_ROLES, f'{mid}: frame.uses role must be one of {sorted(FRAME_ROLES)}')
+        require(english or (res.get('name_en') or '').strip(), f'{mid}: frame.uses {res["name"]} needs name_en')
+        require(not re.match(r'^\s*\d', res['name']), f'{mid}: frame.uses name {res["name"]!r} starts with its '
+                                                     'strength or grade; put that in spec')
+        for spec in res.get('spec') or []:
+            require(isinstance(spec, dict) and str(spec.get('value') or '').strip()
+                    and str(spec.get('property') or '').strip(),
+                    f'{mid}: every spec of {res["name"]} needs a property and a value')
+    for q in frame.get('method') or []:
+        require(isinstance(q, dict) and str(q.get('value') or '').strip() and str(q.get('label') or '').strip(),
+                f'{mid}: every frame.method entry needs a label and a value')
+    proc = frame.get('procedure')
+    require(proc is None or (isinstance(proc, dict) and
+                             not set(proc) - {'step', 'stage', 'stage_en', 'after', 'after_en'}),
+            f'{mid}: frame.procedure has only step, stage, stage_en, after, after_en')
+    require(not re.search(r'\d+(\.\d+)?\s*[%％]', metric['metric_name'] or '') or not frame.get('uses'),
+            f'{mid}: metric_name carries a strength; keep it in frame.uses spec (rules 9.0.0)')
+    return frame
+
+
+VALUE_STRUCTURE_KINDS = {'alternatives', 'required_points', 'composite', 'expression', 'unresolved'}
+
+
+def structure_members_in_display(structure, display):
+    """Mirror metricvalue.ValidateForValue: all numeric tokens, ordered for composites."""
+    if structure.get('kind') not in {'alternatives', 'required_points', 'composite'}:
+        return True
+    numbers = lambda text: [float(token) for token in re.findall(
+        r'[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?',
+        unicodedata.normalize('NFKC', str(text or '')))]
+    values = structure.get('values') or []
+    want, got = numbers(' '.join(values)), numbers(display)
+    if not want:
+        compact = lambda text: re.sub(r'\s+', '', unicodedata.normalize('NFKC', str(text or '')))
+        return all(compact(value) in compact(display) for value in values)
+    if not all(math.isfinite(n) for n in want + got):
+        return False
+    if structure.get('kind') != 'composite':
+        want, got = sorted(want), sorted(got)
+    return want == got
+
+
+def validate_value_structure(metric):
+    structure = metric.get('value_structure')
+    if structure is None:
+        return None
+    mid = metric['metric_id']
+    require(isinstance(structure, dict) and not set(structure) - {'kind', 'values'},
+            f'{mid}: value_structure permits kind and values only')
+    kind = structure.get('kind')
+    require(kind in VALUE_STRUCTURE_KINDS, f'{mid}: invalid value_structure kind')
+    values = structure.get('values')
+    if 'values' in structure:
+        string_list(values, f'{mid}: value_structure.values')
+        if kind != 'composite':
+            require(len(set(v.strip() for v in values)) == len(values), f'{mid}: duplicate structure member')
+    if kind in {'alternatives', 'required_points', 'composite'}:
+        require(isinstance(values, list) and len(values) >= 2,
+                f'{mid}: value_structure needs at least two members')
+    if kind in {'alternatives', 'required_points'}:
+        require(metric['value_range_type'] == 'exact', f'{mid}: a discrete collection is exact, never a range')
+        require(metric.get('value_min') is None and metric.get('value_max') is None,
+                f'{mid}: a discrete collection has no interval endpoints')
+    require(structure_members_in_display(structure, metric['metric_value']),
+            f'{mid}: value_structure members disagree with the complete metric_value')
+    return structure
+
+
 def string_list(value, name, nonempty=False):
     require(isinstance(value, list) and all(isinstance(x, str) and x.strip() for x in value),
             f'{name} must be an array of nonempty strings')
@@ -254,6 +340,9 @@ def validate(record, payload):
     # Checks introduced with rules 6.4.0: a condition of a non-English source has its English rendering
     # in condition_en, as kb.metrics.condition_en does since extract_metrics enrich prompt v13.
     gated_6_4 = version_key(payload['skill_version'])[:3] >= (6, 4, 0)
+    # Checks introduced with rules 9.0.0: the metric frame, and no frame label left in condition.
+    gated_9 = version_key(payload['skill_version'])[0] >= 9
+    gated_10 = version_key(payload['skill_version'])[0] >= 10
     rules = rule_ids(payload['skill_version']) if gated else set()
     require(isinstance(payload.get('model_name'), str) and payload['model_name'].strip(),
             'Missing model_name')
@@ -389,6 +478,9 @@ def validate(record, payload):
         identity = tuple(metric[x].strip().lower() for x in
                          ('metric_name', 'metric_subject', 'metric_unit', 'metric_value',
                           'value_range_type', 'value_class', 'condition'))
+        if gated_10:
+            identity += (json.dumps(validate_value_structure(metric), sort_keys=True),
+                         json.dumps(validate_frame(metric, payload['language']), sort_keys=True))
         if not gated_6_2:                  # before 6.2.0 the same assertion at another location was a row
             identity += (tuple(sorted(spans)), json.dumps(table_rows, sort_keys=True))
         else:
@@ -406,6 +498,13 @@ def validate(record, payload):
             require(metric.get(key) is None or isinstance(metric[key], str), f'Invalid {key}')
             if payload['language'].lower() != 'en':
                 row[key] = metric.get(key)
+        row['value_structure'] = validate_value_structure(metric) if gated_10 else None
+        row['frame'] = validate_frame(metric, payload['language']) if gated_9 else None
+        if gated_9:
+            labels = {re.split(r'[：:]', q.strip(), 1)[0].strip()
+                      for q in re.split(r'[；;]', metric['condition']) if re.search(r'[：:]', q)}
+            moved = sorted(labels & FRAME_CONDITION_LABELS)
+            require(not moved, f'{metric["metric_id"]}: {", ".join(moved)} belong in frame, not condition (rules 9.0.0)')
         if gated_6_4 and payload['language'].lower() != 'en' and metric['condition'].strip():
             require((metric.get('condition_en') or '').strip(),
                     f'{metric["metric_id"]}: condition_en is required for a non-English condition (rules 6.4.0)')
@@ -486,7 +585,7 @@ def save_sql(record, payload, rows):
     fields = TEXT_FIELDS + ARRAY_FIELDS + EN_FIELDS + ['metric_keywords_en', 'source_table_rows',
               'confidence', 'is_explicit_metric', 'value_min', 'value_max', 'input_record_id',
               'run_id', 'source_filename', 'source_sha256', 'skill_name', 'skill_version', 'model_name',
-              'ext_info']
+              'ext_info', 'frame', 'value_structure']
     columns = ', '.join(fields)
     run = run_row(record, payload)
     run_columns = ', '.join(run)

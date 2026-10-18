@@ -40,7 +40,7 @@
       "rules": "3.1.0.md",
       "sha256": "f82b0e31d43d04ad3f4f4918029cd3715e1e3986e6b38528ae41b819a91be634",
       "released": "2026-10-07",
-      "notes": "Clarification from the 416 3.0.0 audit (report 20261007-0854 §3.1): A4 supplies only the value, never the object; a duty to agree an activity's time or frequency is X2; an activity's time slot is not a measurable property."
+      "notes": "Clarification from the 416 3.0.0 audit (report 20261007-0854 \u00a73.1): A4 supplies only the value, never the object; a duty to agree an activity's time or frequency is X2; an activity's time slot is not a measurable property."
     },
     "4.0.0": {
       "rules": "4.0.0.md",
@@ -76,7 +76,7 @@
       "rules": "6.1.0.md",
       "sha256": "9fd5c82bed9af43405fca6f8691ef17c7f38b8e27e1ca6844d3a347b49f50ffa",
       "released": "2026-10-14",
-      "notes": "Same as 6.0.0 except a symmetric ± tolerance keeps its sign in metric_value (±0.2, not 0.2); validate refuses a bare number when the cited threshold text is ±x."
+      "notes": "Same as 6.0.0 except a symmetric \u00b1 tolerance keeps its sign in metric_value (\u00b10.2, not 0.2); validate refuses a bare number when the cited threshold text is \u00b1x."
     },
     "6.2.0": {
       "rules": "6.2.0.md",
@@ -88,19 +88,19 @@
       "rules": "6.3.0.md",
       "sha256": "6ad069edae35abc00f665a8a5fb7ffe5db5c641fdf5c81268988a9b36aea96de",
       "released": "2026-10-15",
-      "notes": "Same as 6.2.0 except data dictionaries (§2.5): a data element's data format (one row, the whole format) and allowed occurrences are A1, not X3 definitions; notations, code lists and obligation M/O/C are not rows."
+      "notes": "Same as 6.2.0 except data dictionaries (\u00a72.5): a data element's data format (one row, the whole format) and allowed occurrences are A1, not X3 definitions; notations, code lists and obligation M/O/C are not rows."
     },
     "6.4.0": {
       "rules": "6.4.0.md",
       "sha256": "9a7ada0a201a75a8e92774f6483a6b46d4ad1684cf5aefa9e84f626a64b78a2a",
       "released": "2026-10-16",
-      "notes": "Same as 6.3.0 except conditions (§3): condition covers applicability, environment, operating state, test method or apparatus, location, load or time point; the subject names only the object; condition written as <kind>：<value> qualifiers; the same settings under two test methods are two metrics."
+      "notes": "Same as 6.3.0 except conditions (\u00a73): condition covers applicability, environment, operating state, test method or apparatus, location, load or time point; the subject names only the object; condition written as <kind>\uff1a<value> qualifiers; the same settings under two test methods are two metrics."
     },
     "6.5.0": {
       "rules": "6.5.0.md",
       "sha256": "0a69280db5d6a41c3421cf0304b3fb47881a0a6fd95a14e1b580e5cd43f31655",
       "released": "2026-10-16",
-      "notes": "Same as 6.4.0 except: a number that only qualifies another value of its clause (a paired load, an apparatus grade, a restated setting) is that value's condition, not a row; a limit stated relative to another limit (1/10 of, equal to the absolute value of) is A1 with unit 倍, not a D1 pointer."
+      "notes": "Same as 6.4.0 except: a number that only qualifies another value of its clause (a paired load, an apparatus grade, a restated setting) is that value's condition, not a row; a limit stated relative to another limit (1/10 of, equal to the absolute value of) is A1 with unit \u500d, not a D1 pointer."
     },
     "6.6.0": {
       "rules": "6.6.0.md",
@@ -112,13 +112,13 @@
       "rules": "6.7.0.md",
       "sha256": "1412fad1a488993ce85ad301655173e26dc8eea4ce03cde748c8a70506d98866",
       "released": "2026-10-17",
-      "notes": "Same as 6.6.0 except: the X3 exception (a number inside a definition is A1) applies only when the defined term is a class of the document's object and the number limits a property measured on it; a category boundary of the people or things the object is for (age bands) and a counting or unit convention (360° per turn) are X3."
+      "notes": "Same as 6.6.0 except: the X3 exception (a number inside a definition is A1) applies only when the defined term is a class of the document's object and the number limits a property measured on it; a category boundary of the people or things the object is for (age bands) and a counting or unit convention (360\u00b0 per turn) are X3."
     },
     "6.8.0": {
       "rules": "6.8.0.md",
       "sha256": "d079f2a5ea06b56335aa62483b844df02b5c5b24ca1bca4d916eb93ff58f3d5e",
       "released": "2026-10-17",
-      "notes": "Same as 6.7.0 except: a size written as a product of dimensions (250 mm×200 mm, 长300 mm×宽300 mm) is one row with metric_value a×b, unit once, exact, and one row for a tolerance serving it; separately stated dimensions stay one row each."
+      "notes": "Same as 6.7.0 except: a size written as a product of dimensions (250 mm\u00d7200 mm, \u957f300 mm\u00d7\u5bbd300 mm) is one row with metric_value a\u00d7b, unit once, exact, and one row for a tolerance serving it; separately stated dimensions stay one row each."
     },
     "6.8.1": {
       "rules": "6.8.1.md",
@@ -130,19 +130,31 @@
       "rules": "7.0.0.md",
       "sha256": "267fccb5a398740c9d9562d06b137582e2729709385f63f562b90f6457128142",
       "released": "2026-10-17",
-      "notes": "A permissive clause (可/宜/建议/酌情/考虑) that states a number is no longer X8: its dose, interval, duration, cap or threshold is A1/A6. X1 excludes the action, not its numbers. New section 2.6 for treatment protocols and procedures."
+      "notes": "A permissive clause (\u53ef/\u5b9c/\u5efa\u8bae/\u914c\u60c5/\u8003\u8651) that states a number is no longer X8: its dose, interval, duration, cap or threshold is A1/A6. X1 excludes the action, not its numbers. New section 2.6 for treatment protocols and procedures."
     },
     "7.1.0": {
       "rules": "7.1.0.md",
       "sha256": "336c730e2900db150fce95ba122e7e774b671a98bc4fe8c809ba375ff0edcc2f",
       "released": "2026-10-17",
-      "notes": "Same as 7.0.0 except: a bound written as a function of case parameters only (age, weight, body surface area, model, grade, rated power), such as 收缩压＜70+年龄×2, is A1 with the expression as metric_value and the parameter range in condition, not X18. A formula that contains a measured quantity stays X18."
+      "notes": "Same as 7.0.0 except: a bound written as a function of case parameters only (age, weight, body surface area, model, grade, rated power), such as \u6536\u7f29\u538b\uff1c70+\u5e74\u9f84\u00d72, is A1 with the expression as metric_value and the parameter range in condition, not X18. A formula that contains a measured quantity stays X18."
     },
     "8.0.0": {
       "rules": "8.0.0.md",
       "sha256": "564eecbe7e7d1af972ce28551a81773a39931a7a1c2bb91ce398e03c65444e65",
       "released": "2026-10-18",
-      "notes": "Trigger vs scope: a number about the case that decides whether, when or how far to act is A1 (own row and condition of the actions), also in headings, lead-ins and time windows; a method chosen by group is X5. k-of-n rules: k=1 ('任何1项', '至少1种') is X4, k>=2 is an A1 interpretation cut-off. A value given once to alternative agents is one row per agent; paired notation (180/110 mmHg) is one row per component."
+      "notes": "Trigger vs scope: a number about the case that decides whether, when or how far to act is A1 (own row and condition of the actions), also in headings, lead-ins and time windows; a method chosen by group is X5. k-of-n rules: k=1 ('\u4efb\u4f551\u9879', '\u81f3\u5c111\u79cd') is X4, k>=2 is an A1 interpretation cut-off. A value given once to alternative agents is one row per agent; paired notation (180/110 mmHg) is one row per component."
+    },
+    "9.0.0": {
+      "rules": "9.0.0.md",
+      "sha256": "040f86f231af5fb26a75d632bebb527a37690228ebe19389ebee277166c90191",
+      "released": "2026-10-18",
+      "notes": "Metric frame (openspec change metric-frame): uses (resources with role and identifying spec), method and procedure beside condition; apparatus, medium, reagent, agent, method, route and stage qualifiers move from condition to frame. A resource's identifying spec (strength, concentration, dilution, grade) is not a row (X12) unless the resource is the specified object; an amount-less step with a strength is X12; metric_name carries no strength."
+    },
+    "10.0.0": {
+      "rules": "10.0.0.md",
+      "sha256": "5154e11bb55d27a9ae21c30e4f54f5bc3026b92d7614dd95706287475d598c65",
+      "released": "2026-10-18",
+      "notes": "Semantic row granularity: retain alternatives and required point collections, split only independent assertions preserving conditions and frame; structured values and relation-aware scoring."
     }
   }
 }

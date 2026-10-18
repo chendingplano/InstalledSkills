@@ -56,6 +56,50 @@ class BenchmarkIOTests(unittest.TestCase):
             'language', 'completeness_review', 'correctness_review', 'coverage', 'candidates', 'metrics')})
         return payload
 
+    def test_value_structure_is_validated_and_persisted_by_version(self):
+        payload = self.pinned('10.0.0')
+        structure = {'kind': 'alternatives', 'values': ['10', '20', '30']}
+        payload['metrics'][0].update(value_structure=structure, value_range_type='exact', metric_value='10, 20 or 30')
+        rows = self.io.validate(self.record, payload)
+        self.assertEqual(rows[0]['value_structure'], structure)
+        self.assertIn('value_structure', self.io.save_sql(self.record, payload, rows))
+        for invalid in ({'kind': 'scalar', 'values': ['10']},
+                        {'kind': 'alternatives', 'values': ['10']},
+                        {'kind': 'required_points', 'values': [10, 20]},
+                        {'kind': 'composite', 'values': []},
+                        {'kind': 'alternatives', 'values': ['10', '20', '999']}):
+            payload['metrics'][0]['value_structure'] = invalid
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                self.io.validate(self.record, payload)
+        old = self.pinned('9.0.0')
+        old['metrics'][0]['value_structure'] = structure
+        self.assertIsNone(self.io.validate(self.record, old)[0]['value_structure'])
+
+    def test_expression_and_unresolved_omit_members(self):
+        for kind in ('expression', 'unresolved'):
+            payload = self.pinned('10.0.0')
+            payload['metrics'][0].update(metric_value='70+age×2', value_structure={'kind': kind})
+            self.assertEqual(self.io.validate(self.record, payload)[0]['value_structure'], {'kind': kind})
+        for structure, display in (
+            ({'kind': 'composite', 'values': ['10', '20']}, '20×10'),
+            ({'kind': 'alternatives', 'values': ['10', '20']}, '10,20,30'),
+            ({'kind': 'unresolved', 'unexpected': True}, '10 or 20'),
+        ):
+            payload = self.pinned('10.0.0')
+            payload['metrics'][0].update(metric_value=display, value_range_type='exact', value_structure=structure)
+            with self.subTest(structure=structure), self.assertRaises(ValueError):
+                self.io.validate(self.record, payload)
+
+    def test_new_granularity_keeps_distinct_frames_independent(self):
+        payload = self.pinned('10.0.0')
+        first = payload['metrics'][0]
+        first['frame'] = {'uses': [{'role': 'apparatus', 'name': 'Apparatus A'}]}
+        second = copy.deepcopy(first)
+        second.update(metric_id='123_gold_2', frame={'uses': [{'role': 'apparatus', 'name': 'Apparatus B'}]})
+        payload['metrics'].append(second)
+        payload['candidates'][0]['metric_ids'].append('123_gold_2')
+        self.assertEqual(len(self.io.validate(self.record, payload)), 2)
+
     def test_valid_unicode_source_and_evidence(self):
         rows = self.io.validate(self.record, self.payload)
         self.assertEqual(rows[0]['input_record_id'], 123)
@@ -488,6 +532,33 @@ class BenchmarkIOTests(unittest.TestCase):
         english = self.pinned('6.4.0')                               # English sources need no _en
         english['metrics'][0]['condition'] = 'Population: adults'
         self.assertNotIn('condition_en', self.io.validate(self.record, english)[0])
+
+    def test_rules_9_frame_shape_and_no_frame_labels_in_condition(self):
+        gauge = {'uses': [{'role': 'apparatus', 'name': 'pressure gauge'}],
+                 'method': [{'label': 'Test method', 'value': 'method B'}], 'procedure': {'step': '6.3'}}
+        ok = self.pinned('9.0.0')
+        ok['metrics'][0]['frame'] = copy.deepcopy(gauge)
+        self.assertEqual(self.io.validate(self.record, ok)[0]['frame'], gauge)
+        none = self.pinned('9.0.0')                                  # a row without a frame stores null
+        self.assertIsNone(self.io.validate(self.record, none)[0]['frame'])
+        for bad in ({'uses': [{'role': 'tool', 'name': 'gauge'}]},
+                    {'uses': [{'role': 'agent', 'name': ''}]},
+                    {'uses': [{'role': 'agent', 'name': '50% glucose'}]},
+                    {'uses': [{'role': 'agent', 'name': 'glucose', 'spec': [{'property': 'concentration'}]}]},
+                    {'method': [{'label': 'Route', 'value': ''}]},
+                    {'procedure': {'clause': '6.3'}},
+                    {'conditions': []}):
+            payload = self.pinned('9.0.0')
+            payload['metrics'][0]['frame'] = bad
+            with self.assertRaises(ValueError, msg=bad):
+                self.io.validate(self.record, payload)
+        legacy = self.pinned('9.0.0')
+        legacy['metrics'][0]['condition'] = '试验装置：压力表'
+        with self.assertRaises(ValueError):
+            self.io.validate(self.record, legacy)
+        old = self.pinned('8.0.0')                                   # earlier versions are unchanged
+        old['metrics'][0]['condition'] = '试验装置：压力表'
+        self.assertIsNone(self.io.validate(self.record, old)[0]['frame'])
 
     def test_rules_6_2_one_metric_holds_all_its_occurrences(self):
         self.source.write_text(self.source.read_text(encoding='utf-8') +

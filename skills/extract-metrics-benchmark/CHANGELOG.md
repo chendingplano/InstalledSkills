@@ -8,10 +8,28 @@ Two kinds of change are tracked separately:
 - **Tooling changes** — `SKILL.md` procedure, `references/`, `scripts/`, storage. Shared by all
   versions and always the latest; they must keep every released rules version runnable.
 
+## 2026-10-18: semantic collections (rules 10.0.0)
+
+Release 10.0.0 changes row granularity: split independent assertions only; alternatives and mandatory
+point collections remain one metric with their full relationship, conditions and frame. Add nullable
+`value_structure` validation and persistence for 10.0.0+, keeping old versions runnable. Scoring
+version 5 checks collection kind and every member and refuses first-member/range substitutions.
+Existing frozen rules and stored runs are unchanged; rebenchmark explicitly when needed.
+
+### 2026-10-19 — clarify candidate boundaries and consumer limitations
+
+- The shared skill now states the semantic boundary before candidate inventory, with explicit
+  conditional-value, permitted-alternative and mandatory-point examples.
+- Numeric comparison limitations never justify flattening a collection, selecting its first member
+  or inventing an interval. Audits/read-back verify membership, logical relationship, conditions
+  and frame; the payload example includes nullable `value_structure`.
+- This clarifies shared procedure without changing frozen rules 10.0.0 or earlier releases.
+
 ## Rules versions
 
 | Version | Rules file | Notes |
 |---|---|---|
+| 10.0.0 | `rules/10.0.0.md` | Semantic collections and independent assertion granularity. |
 | 1.0.0 | `rules/1.0.0.md` | Original rules (jj commit 9e18). Known problems: devdoc `2026100601-devdoc-gold-metrics-416-review`. |
 | 1.1.0 | `rules/1.0.0.md` | Alias: released as a tooling-only change (skill_version column); rules identical to 1.0.0. Used by run `e6bd8f49` (record 753). |
 | 1.2.0 | `rules/1.0.0.md` | Alias: released as a tooling-only change (skill_name, model_name columns); rules identical to 1.0.0. |
@@ -36,9 +54,29 @@ Two kinds of change are tracked separately:
 | 7.0.0 | `rules/7.0.0.md` | Modality is not part of the metric gate: a 可/宜/建议/酌情/考虑 clause that states a number is A1/A6 (X8 narrowed to clauses with no value); X1 excludes the action, not its numbers; new §2.6 for treatment protocols and procedures. See below. |
 | 7.1.0 | `rules/7.1.0.md` | A bound written as a function of case parameters only (age, weight, body surface area, model, grade, rated power), such as 收缩压＜70+年龄×2, is A1, not X18; a formula with a measured quantity stays X18. See below. |
 | 8.0.0 | `rules/8.0.0.md` | Triggers (also in headings, lead-ins, time windows) are A1 rows, a method chosen by group is X5; k-of-n with k=1 is X4, k≥2 A1; one value for alternative agents is one row per agent; 180/110 mmHg is one row per component. See below. |
+| 9.0.0 | `rules/9.0.0.md` | Metric frame: apparatus, medium, reagent, agent, method, route and stage move from `condition` to `frame` (uses / method / procedure); a resource's identifying spec (50％, 1:1000, 5 等) is not a row (X12) unless the resource is the specified object; no strength in `metric_name`. See below. |
 
-Default when no version is named: the newest released version (currently 8.0.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
+Default when no version is named: the newest released version (currently 9.0.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
 because rows were already saved under those labels.
+
+### 9.0.0 — 2026-10-18
+
+Major (which assertions are metrics changes). Ruled by the user on record 364: `364_mtc_30` (葡萄糖浓度 50 %)
+is not a metric but the product the 40 ml dose uses; a metric holds its value inside a frame (openspec change
+`metric-frame` in ChenWeb).
+
+- **Frame (§3).** Rows carry `frame`: `uses` (resources with role and identifying spec), `method` (test
+  method, route, mode) and `procedure` (step, stage, preceding step). The apparatus, medium, reagent, agent,
+  method, route and stage qualifiers that 6.4.0–8.0.0 wrote in `condition` are written there.
+- **Resource spec (X12, §2.6).** A strength, concentration, dilution, grade, class or model that only names
+  which resource another value uses is that resource's `spec`, not a row, in every document kind; it stays A1
+  when the resource is the specified object. Accuracy, error, range, resolution and dimensions of an apparatus
+  and amounts of a reagent or sample stay rows. An amount-less step with a strength is X12.
+- **Names (§3).** `metric_name` carries no strength; the frame keeps strengths apart.
+- **Audit (§4).** A check for each of the above.
+
+Tooling: `testbed.metrics.frame` (ChenWeb migration `20261018000001`); `benchmark_io.py validate` checks the
+frame shape from 9.0.0 and refuses legacy frame labels in `condition`. Stored runs are not changed.
 
 ### 8.0.0 — 2026-10-18
 
