@@ -35,9 +35,28 @@ Two kinds of change are tracked separately:
 | 6.8.1 | `rules/6.8.1.md` | Wording only: a tolerance cell serving several listed quantities is one row per quantity, with its qualifiers. See below. |
 | 7.0.0 | `rules/7.0.0.md` | Modality is not part of the metric gate: a 可/宜/建议/酌情/考虑 clause that states a number is A1/A6 (X8 narrowed to clauses with no value); X1 excludes the action, not its numbers; new §2.6 for treatment protocols and procedures. See below. |
 | 7.1.0 | `rules/7.1.0.md` | A bound written as a function of case parameters only (age, weight, body surface area, model, grade, rated power), such as 收缩压＜70+年龄×2, is A1, not X18; a formula with a measured quantity stays X18. See below. |
+| 8.0.0 | `rules/8.0.0.md` | Triggers (also in headings, lead-ins, time windows) are A1 rows, a method chosen by group is X5; k-of-n with k=1 is X4, k≥2 A1; one value for alternative agents is one row per agent; 180/110 mmHg is one row per component. See below. |
 
-Default when no version is named: the newest released version (currently 7.1.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
+Default when no version is named: the newest released version (currently 8.0.0); pre-releases are never the default. From now on tooling changes do not create rules versions; 1.1.0 and 1.2.0 remain only
 because rows were already saved under those labels.
+
+### 8.0.0 — 2026-10-18
+
+Major (which assertions are metrics changes). From the analysis of the 15 gold rows `extract_metrics`
+missed on record 364 against the 7.1.0 run `20261017_164614` (score run 13): gold 112 and 113 ("符合任何1项",
+"至少有下述1种表现") were not metrics; gold 125/126 split "沙丁胺醇或特布他林" by agent while 133/134 merged
+"地西泮…或咪达唑仑…重复应用1次"; the trigger/scope boundary, k-of-n rules and "180/110 mmHg" had no stated rule.
+
+- **Trigger vs scope (§2.6, X5).** A number about the case that decides whether, when or how far to act is
+  A1, its own row and the `condition` of the actions it governs, also when written in a heading, lead-in or
+  criteria list, and for time windows ("近2周"). A number that only picks the method for a group is X5.
+- **k-of-n (§2.6, X4).** k = 1 ("any one of") is X4; k ≥ 2 is one A1 interpretation cut-off.
+- **Alternatives (§2.6, §3).** A value given once to alternative agents, products or objects is one row per
+  agent; alternative wording for one property of one object stays one row.
+- **Paired notation (§3).** "血压≥180/110mmHg" is one row per component quantity.
+- **Audit (§4).** Checks for each of the above.
+
+The stored 7.1.0 run is not changed; its corrected copy is a separate 8.0.0 run. Tooling unchanged.
 
 ### 7.1.0 — 2026-10-17
 

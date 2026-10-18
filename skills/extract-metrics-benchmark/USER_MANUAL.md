@@ -148,8 +148,9 @@ date.
 | 6.8.1 | `rules/6.8.1.md` | 2026-10-17 | Wording only: a ±5 mm written once for several sizes gives one tolerance per size. |
 | 7.0.0 | `rules/7.0.0.md` | 2026-10-17 | A dose, interval, duration, cap or threshold written with 可/宜/建议/酌情/考虑 is a metric like any other (X8 only for clauses with no number); X1 excludes the action, not its numbers; new section for treatment protocols and procedures. |
 | 7.1.0 | `rules/7.1.0.md` | 2026-10-17 | A bound written as a function of case parameters only (such as 收缩压＜70+年龄×2) is a metric, not a value-less formula; a formula containing a measured quantity is still excluded. |
+| 8.0.0 | `rules/8.0.0.md` | 2026-10-18 | **Triggers, "any one of", alternatives, 180/110.** A number about the case that decides whether to act (抽搐超过5min, 年龄≥75岁 to upgrade, 近2周外伤史), even in a heading, is a metric of its own; a method chosen by age group is not. "符合任何1项" is not a metric, "2种以上表现" is. "沙丁胺醇或特布他林 2.5～5mg" is one row per drug; "180/110mmHg" is two rows. |
 
-**If you don't name a version, the newest one is used** (the highest version number; currently 7.1.0).
+**If you don't name a version, the newest one is used** (the highest version number; currently 8.0.0).
 Draft versions marked as pre-releases, such as `2.0.0-rc.1`, are used only when you name them. The
 assistant tells you which version it used.
 
@@ -232,6 +233,7 @@ instructions from this skill. Judge it as a human domain expert.
 
 | Version | Timestamp | Author | Reason | Summary |
 |---|---|---|---|---|
+| 1.21 | 2026-10-18T10:00:00-05:00 | Not specified (drafted by Claude Code) | Rules version 8.0.0 released | Added 8.0.0 to Available versions; it is now the default. |
 | 1.20 | 2026-10-17T16:10:00-05:00 | Not specified (drafted by Claude Code) | Rules version 7.1.0 released | Added 7.1.0 to Available versions; it is now the default. |
 | 1.19 | 2026-10-17T14:30:00-05:00 | Not specified (drafted by Claude Code) | Rules version 7.0.0 released | Added 7.0.0 to Available versions (modality is not part of the metric gate); it is now the default. |
 | 1.18 | 2026-10-17T10:30:00-05:00 | Not specified (drafted by Claude Code) | Rules version 6.8.1 released | Added 6.8.1 to Available versions; it is now the default. |
