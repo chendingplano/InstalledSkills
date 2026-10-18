@@ -167,6 +167,18 @@ class ScoreTests(unittest.TestCase):
         with self.assertRaisesRegex(io.ScoreError, 'ledger candidate'):
             io.score(self.inp, bad)
 
+    def test_false_positive_naming_a_missed_gold_row_is_refused(self):
+        # A merged prediction must be paired with the closer gold row, not left as a false positive
+        # while the gold rows it merged are both missed (record 364, score run 13: 364_mtc_63).
+        bad = copy.deepcopy(self.matches)
+        bad['false_positives'][0] = {'pred': 'p3', 'cause': 'not_in_gold',
+                                     'note': 'merges the g3 target with another one'}
+        with self.assertRaisesRegex(io.ScoreError, 'names missed gold row g3'):
+            io.score(self.inp, bad)
+        ok = copy.deepcopy(self.matches)
+        ok['false_positives'][0] = {'pred': 'p3', 'cause': 'not_in_gold', 'note': 'unlike g1, nothing in gold'}
+        io.score(self.inp, ok)
+
     def test_kind_override_is_refused(self):
         self.matches['overrides'] = [{'gold': 'g1', 'field': 'kind', 'correct': True, 'reason': 'x'}]
         with self.assertRaisesRegex(io.ScoreError, 'override field'):
@@ -195,6 +207,26 @@ class DroppedRowsTests(unittest.TestCase):
         self.assertIn('## Dropped rows (2)', text)
         self.assertIn('| 416_drp_2 | decision_model | activity_schedule | 餐厨垃圾收运时间和频次 | 0.97 | g7 |', text)
         self.assertIn('| 416_drp_1 | statement_kind | inspection_requirement | 垃圾桶加盖 |  |  |', text)
+
+    def test_enrich_drops_from_logs_join_candidate_text(self):
+        logs = [{'activity_name': 'extract_metric_candidates', 'artifact': {'candidates': [
+                    {'candidate_id': '17_5', 'metric_name_hint': '抽搐持续时间', 'value_hint': '>5',
+                     'unit_hint': 'min', 'evidence_quote': '对抽搐持续超过5min的患儿现场处理', 'source_line_spans': ['309']}]}},
+                {'activity_name': 'enrich_metrics', 'artifact': {'metrics': [], 'dropped_candidates': [
+                    {'candidate_id': '17_5', 'reason': 'not_a_metric:condition_of:17_6'},
+                    {'candidate_id': '99_1', 'reason': 'term_definition'}]}}]
+        drops = io.enrich_drops_from_logs(logs)
+        self.assertEqual(drops[0], {'drop_id': 'log:17_5', 'drop_stage': 'enrich', 'drop_reason': 'not_a_metric:condition_of:17_6',
+                                    'metric_name': '抽搐持续时间', 'threshold_or_target': '对抽搐持续超过5min的患儿现场处理',
+                                    'value': '>5 min', 'source_line_spans': ['309'], 'event_id': None, 'decision': None})
+        self.assertEqual(drops[1]['source_line_spans'], [])
+
+    def test_log_drops_are_added_only_when_the_table_has_no_enrich_rows(self):
+        log_drop = {'drop_id': 'log:1_1', 'drop_stage': 'enrich', 'drop_reason': 'term_definition'}
+        merged = io.merge_enrich_drops(self.dropped, [log_drop])
+        self.assertEqual([d['drop_id'] for d in merged], ['416_drp_1', '416_drp_2', 'log:1_1'])
+        table_enrich = self.dropped + [{'drop_id': '416_drp_3', 'drop_stage': 'enrich', 'drop_reason': 'term_definition'}]
+        self.assertEqual(io.merge_enrich_drops(table_enrich, [log_drop]), table_enrich)
 
     def test_section_without_dropped_rows(self):
         self.assertEqual(io.dropped_rows_section({'extraction': {}, 'gold': []}, {'missed': []})[-1], 'None.')

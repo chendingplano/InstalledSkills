@@ -57,7 +57,10 @@ for another condition of the same property (幼儿 vs 成年人, a simulation de
 pair each predicted row with the gold row of its condition, and let the condition check grade a
 wrong or missing condition only when no gold row of the right condition is left. Pairs are
 one-to-one. If the extractor merged two gold assertions into one row, pair it with the closer one
-(on a tie, the one stated first in the source) and list the other as missed, with a note.
+(on a tie, the one stated first in the source) and list the other as missed, with a note. Never leave such a
+merged row as a `not_in_gold` false positive while the gold rows it merged are missed: the script
+refuses a `not_in_gold` or `invalid` false positive whose note names a missed gold row (record 364,
+score run 13, left `364_mtc_63` "180/110" unpaired although `364_mtc_64`, the same shape, was paired).
 
 Every gold row appears exactly once, in `pairs` or `missed`. Every predicted row appears exactly
 once, in `pairs` or `false_positives`. The script refuses anything else.
@@ -150,6 +153,9 @@ with the weights used, the counts of missed and false-positive rows, and the wit
 patterns (which fields fail most, the false-positive causes, what was missed); any warnings; and
 the `report.md` path. Mention any dropped row the report flags as on the same lines as a missed gold
 row: `extract_metrics` set it aside (`kb.metrics_dropped`, not scored), so it may be a wrong drop.
+The section also lists the candidates the enrich pass dropped (`drop_stage` `enrich`); for runs before
+2026-10-18 these are read from `kb.doc_proc_logs` and have `log:<candidate_id>` ids. On record 364
+four of the true misses were such drops.
 When comparing scores, compare only scores made against the same gold run, the same scoring
 version and the same weights. A gold run under rules older than 6.4.0 may write conditions in another shape or leave
 the test method out of them; say so when the condition check fails often against such a run.

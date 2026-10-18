@@ -186,6 +186,46 @@ def exclusion_from_dropped(dropped):
             for d in dropped if d.get('drop_stage') == 'statement_kind']
 
 
+def fetch_enrich_logs(record_id, run_id):
+    """Candidate and enrich log entries of one extract_metrics run (kb.doc_proc_logs)."""
+    if run_id is None:
+        return []
+    return query_json(f'''SELECT COALESCE(json_agg(json_build_object('activity_name', activity_name,
+   'artifact', artifact) ORDER BY id), '[]') FROM kb.doc_proc_logs
+ WHERE record_id = {record_id} AND run_id = {int(run_id)}
+   AND activity_name IN ('extract_metric_candidates', 'enrich_metrics');''')
+
+
+def enrich_drops_from_logs(logs):
+    """Candidates the enrich pass listed in dropped_candidates, joined with the candidate pass's text.
+    Runs before 2026-10-18 kept these only in the log, not in kb.metrics_dropped."""
+    cands = {}
+    for entry in logs:
+        if entry.get('activity_name') == 'extract_metric_candidates':
+            for c in (entry.get('artifact') or {}).get('candidates') or []:
+                cands.setdefault(str(c.get('candidate_id')), c)
+    drops = []
+    for entry in logs:
+        if entry.get('activity_name') != 'enrich_metrics':
+            continue
+        for d in (entry.get('artifact') or {}).get('dropped_candidates') or []:
+            cid = str(d.get('candidate_id'))
+            c = cands.get(cid, {})
+            value = ' '.join(x for x in (c.get('value_hint'), c.get('unit_hint')) if x)
+            drops.append({'drop_id': f'log:{cid}', 'drop_stage': 'enrich', 'drop_reason': d.get('reason'),
+                          'metric_name': c.get('metric_name_hint'), 'threshold_or_target': c.get('evidence_quote'),
+                          'value': value, 'source_line_spans': c.get('source_line_spans') or [],
+                          'event_id': None, 'decision': None})
+    return drops
+
+
+def merge_enrich_drops(table_rows, log_drops):
+    """Add the log's enrich drops unless kb.metrics_dropped already holds that stage."""
+    if any(r.get('drop_stage') == 'enrich' for r in table_rows):
+        return table_rows
+    return list(table_rows) + list(log_drops)
+
+
 def fetch_extraction_logs(record_id):
     """The latest extract_metrics run that saved rows, and its exclude_pure_requirements entries
     (written by runs before kb.metrics_dropped existed)."""
@@ -438,6 +478,7 @@ def export(record_id, version=None, model=None, run_id=None, out_dir=None):
     events = {r.get('event_id') for r in preds if r.get('event_id')}
     dropped_rows = [d for d in (fetch_dropped_rows(record_id) or []) if not events or d.get('event_id') in events]
     exclusion_log = exclusion_from_dropped(dropped_rows) if dropped_rows else (logs.get('excluded') or [])
+    dropped_rows = merge_enrich_drops(dropped_rows, enrich_drops_from_logs(fetch_enrich_logs(record_id, logs.get('run_id')) or []))
     payload = {
         'record_id': record_id, 'title': record.get('title'), 'doc_no': record.get('doc_no'),
         'gold_run': {**run, 'stand_in': stand_in, 'dropped_metric_ids': dropped,
@@ -472,6 +513,7 @@ def check_matches(inp, matches):
     pairs, missed, fps = matches.get('pairs', []), matches.get('missed', []), matches.get('false_positives', [])
     seen_gold = [p['gold'] for p in pairs] + [m['gold'] for m in missed]
     seen_pred = [p['pred'] for p in pairs] + [f['pred'] for f in fps]
+    missed_ids = {m['gold'] for m in missed}
     for name, seen, expected in (('gold', seen_gold, gold_ids), ('predicted', seen_pred, pred_ids)):
         dupes = sorted({x for x in seen if seen.count(x) > 1})
         require(not dupes, f'{name} rows accounted for more than once: {dupes}')
@@ -487,6 +529,11 @@ def check_matches(inp, matches):
         if f['cause'] == 'duplicate':
             require(f.get('of') in pred_ids and f.get('of') != f['pred'],
                     f'false positive {f["pred"]}: "of" must name the other predicted row')
+        if f['cause'] in ('not_in_gold', 'invalid'):
+            # A row that merges missed gold assertions is a pair with the closer one, not a false positive.
+            named = [g for g in missed_ids if re.search(rf'(?<!\w){re.escape(g)}(?!\w)', str(f.get('note') or ''))]
+            require(not named, f'false positive {f["pred"]} names missed gold row {", ".join(named)}: if it states '
+                               'that assertion (or merges it with another), pair it with the closer gold row')
     paired_gold = {p['gold'] for p in pairs}
     for o in matches.get('overrides', []):
         require(o.get('gold') in paired_gold, f'override for unpaired gold row {o.get("gold")}')
@@ -647,7 +694,8 @@ def dropped_rows_section(inp, result):
         return lines + ['None.']
     gold = {g['metric_id']: g for g in inp['gold']}
     missed = [gold[x['gold']] for x in result['missed'] if x['gold'] in gold]
-    lines += ['Set aside by extract_metrics (kb.metrics_dropped); not counted in the score.', '',
+    lines += ['Set aside by extract_metrics (kb.metrics_dropped; `log:` ids are enrich-pass drops read from '
+              'kb.doc_proc_logs); not counted in the score.', '',
               '| Drop id | Stage | Reason | Metric | P | Same lines as missed gold |', '|---|---|---|---|---:|---|']
     for d in dropped:
         probs = (d.get('decision') or {}).get('probabilities') or {}
