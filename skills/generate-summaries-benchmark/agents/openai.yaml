@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gold Summary Benchmark"
+  short_description: "Create reviewed, source-backed gold chunk summaries"
+  default_prompt: "Use $generate-summaries-benchmark to create and save gold summaries for this kb.inputs document."
