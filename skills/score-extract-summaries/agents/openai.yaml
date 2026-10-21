@@ -1,0 +1,4 @@
+interface:
+  display_name: "Score Extracted Summaries"
+  short_description: "Score chunk summaries against reviewed gold benchmarks"
+  default_prompt: "Use $score-extract-summaries to score extract_summaries for this kb.inputs document against its gold benchmark."
