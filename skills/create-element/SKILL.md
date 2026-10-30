@@ -54,6 +54,14 @@ is an information design decision: it does not automatically create nested JSON 
 Preserve the current schema's flat attributes; use nested structures where an explicit
 contract calls for them, such as `validation`, `columns` or per-row settings.
 
+Assign a reasonable default to every configurable attribute that can have one, and put
+it in both the document and the class descriptor's `default_value`. Use valid, predictable
+values that make the element usable with minimal configuration. Leave an attribute without
+a concrete default only when no reasonable value exists, such as a page-specific binding
+or action; document the reason and whether the instance must supply it. Do not invent
+bindings, data sources or actions merely to fill defaults. Preserve deliberate existing
+defaults unless the approved change calls for different ones.
+
 Preserve WPI's contract:
 
 - A class has a `descriptor_id` and names its renderer with `code_module_id`.
@@ -115,6 +123,16 @@ schema versions are still current.
   `module_doc` filename. Use the `db-migration` skill for schema changes and project
   goose migrations for catalogue seeds. The row/document precede activation; an active
   class requires implemented code and validation. Reuse rows instead of duplicating them.
+- **Create or update the element class record in `kb.wpi_descriptors`.** This is required
+  in addition to code-module and reusable-module registration. Look up the existing class
+  by its stable `descriptor_id` and `kind: element` before writing; update that identity
+  by writing a new version, never editing a stored version in place or creating a duplicate
+  class identity. Use the project's current descriptor write/versioning
+  mechanism and schema. Store the approved class descriptor, its `code_module_id`, attribute
+  definitions, help tips, defaults and fixed/modifiable settings. Include a `default_value`
+  for every attribute with a reasonable default; record justified exceptions using WPI's
+  required-null or optional-omission semantics. Keep the class draft until its module and
+  validators support activation. Existing page class copies remain unchanged.
 - Use `create-reusable-module` for the reusable-module documentation/catalogue. The WPI
   `kb.code_modules` record and the `kb.reusable_modules` record serve different purposes;
   preserve both identities and link their documents. Extend an existing parent module
@@ -132,6 +150,13 @@ the relevant interactions and error paths. For complex lists, exercise search/pa
 record identity, editing, saving and failure recovery. Run project-required checks and
 browser interaction checks where applicable; report any checks blocked by authentication
 or unavailable services instead of claiming they passed.
+
+Read back the created or updated `kb.wpi_descriptors` record and verify its identity,
+version/status, module reference, attribute coverage and defaults against the approved
+document. Check that every missing concrete default has a documented reason, and exercise
+an instance that omits defaulted attributes. A migration file or JSON example alone does
+not establish that the record exists. If the database is unavailable, report the descriptor
+write/read-back as pending rather than claiming element creation is complete.
 
 Update the canonical document with actual files, registration, supported attributes,
 implementation status, verification evidence and remaining limits. Keep planned capabilities

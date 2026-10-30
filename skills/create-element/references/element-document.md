@@ -9,7 +9,9 @@ irrelevant options to a primitive component.
 
 1. **Identity and status.** Code module ID, classes using it, purpose, draft revision,
    design-review status and actual approval when received. Give the intended
-   `kb.code_modules` row, marking proposed registration as proposed. Include known frontend
+   `kb.code_modules` row and the element class record(s) in `kb.wpi_descriptors`, including
+   stable descriptor IDs, versions and draft/active status; mark planned writes as proposed.
+   Include known frontend
    and backend locations, related WPI design links and reusable-module identity if one exists.
 2. **Purpose and behavior.** What it displays or edits, intended reuse, inputs and outputs,
    composition boundary and deliberately excluded capabilities. Explain a typical use in
@@ -18,6 +20,9 @@ irrelevant options to a primitive component.
    its exact JSON path, data type, allowed values/units, default, requiredness, meaning,
    validation and dependencies. Add prose for behaviors a table cannot explain. Document
    class configurability, instance overrides and applicable page/module defaults.
+   Supply a reasonable default for every attribute that can have one. For each exception,
+   explain why no reasonable default exists and whether it is required per instance or
+   optional. Keep the defaults identical in the document and stored class descriptor.
 4. **States and interactions.** Initial, loading, ready, empty, disabled, read-only, dirty,
    validating, saving, success and failure where applicable. Define transitions, focus,
    keyboard/touch behavior, asynchronous races and recovery without losing user work.
@@ -34,7 +39,8 @@ irrelevant options to a primitive component.
    renewed approval. Do not record machine review as human approval.
 8. **Implementation and verification.** Fill in after implementation: module interface,
    files, renderer and validator registration, migrations, classes/versions, module catalogue
-   link, checks performed, known limits and compatibility guidance for saved class copies.
+   link, verified `kb.wpi_descriptors` write/read-back, checks performed, known limits and
+   compatibility guidance for saved class copies.
 
 ## Configuration coverage
 
@@ -84,6 +90,8 @@ Before presenting the document, check that a designer can answer:
 - Can this element be configured for materially different pages without code changes?
 - Are look-and-feel settings and behavioral settings discoverable in logical groups?
 - Does every option have a predictable default and a defined interaction with other options?
+- Does every attribute without a concrete default have a justified exception and explicit
+  required/optional semantics? Do the stored descriptor and document agree?
 - Can the examples, normal states, edge states and failures be understood without reading code?
 - Are proposed features, exclusions and implementation gaps visible?
 - Are consequential open questions resolved or clearly presented for decision?
