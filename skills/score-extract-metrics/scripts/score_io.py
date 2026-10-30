@@ -231,7 +231,7 @@ def fetch_extraction_logs(record_id):
     (written by runs before kb.metrics_dropped existed)."""
     return query_json(f'''WITH last AS (
  SELECT run_id, max(create_time) AS saved_at FROM kb.doc_proc_logs
- WHERE record_id = {record_id} AND doc_proc_name = 'extract_metrics'
+ WHERE record_id = {record_id} AND doc_proc_name IN ('extract_metrics', 'extract_metrics_simple')
    AND activity_name = 'extract_metrics_final' AND run_id IS NOT NULL
  GROUP BY run_id ORDER BY saved_at DESC LIMIT 1)
 SELECT json_build_object('run_id', (SELECT run_id FROM last), 'saved_at', (SELECT saved_at FROM last),
