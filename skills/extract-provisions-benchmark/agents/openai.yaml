@@ -1,0 +1,4 @@
+interface:
+  display_name: "Extract Provisions Benchmark"
+  short_description: "Build audited provision benchmarks from document lines"
+  default_prompt: "Use $extract-provisions-benchmark to extract and audit provisions for kb.inputs.id 123 and save the benchmark to testbed.provisions."

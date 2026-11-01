@@ -1,0 +1,10 @@
+{
+  "versions": {
+    "1.0.0": {
+      "rules": "1.0.0.md",
+      "sha256": "e86eb4ea31b5c271a4917c205706d958dfdb58b284f0482250aa7900b4ed9320",
+      "released": "2026-11-06",
+      "notes": "First release: provision model of extract_provisions (prompt-extract-provisions-v3, GB/T 1.1-2020 §9 provision types); user rulings: test-method steps are instructions, one provision per normative statement."
+    }
+  }
+}
