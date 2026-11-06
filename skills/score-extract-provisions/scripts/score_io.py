@@ -2,8 +2,9 @@
 """Score extract_provisions output (kb.provisions) for one document against its gold provisions
 (testbed.provisions).
 
-export: pick the gold run, fetch gold and predicted rows, write input.json for the matching step.
-score:  check the reviewed matches.json, compute the 1-100 score, write score.json and report.md.
+export: write the full input.json audit snapshot and compact matching-input.json.
+project: regenerate matching-input.json from a finalized audit snapshot.
+score: expand/validate matches.json, compute the 1-100 score, write expanded decisions and report.
 """
 import argparse
 from datetime import datetime
@@ -289,6 +290,113 @@ def compact_pred(row):
     return out
 
 
+def matching_view(inp):
+    """LLM-only projection. Array order is the persisted, one-based ID mapping."""
+    def rows(name):
+        return [[r.get('source_line_spans') or [], pred_text(r), r.get('provision_subject') or '']
+                for r in inp[name]]
+    return {'v': 2, 'lc': inp['source']['lines_comparable'],
+            'sa': inp['source'].get('available', bool(inp.get('source_text') or inp['source'].get('path'))),
+            'g': rows('gold'),
+            'p': rows('predictions'),
+            'c': [[r.get('source_line_spans') or [], r.get('text') or '',
+                   r['rule_id'], r.get('reason') or ''] for r in inp['gold_ledger']]}
+
+
+def expand_matches(inp, wire, lang=None):
+    """Decode strict v2 decisions to the existing scorer/report format; never infer omissions."""
+    def valid(condition, message):
+        require(condition, 'compact matches: ' + message)
+
+    valid(isinstance(wire, dict) and set(wire) == {'v', 'p', 'm', 'f', 'o'},
+          'expected exactly v,p,m,f,o')
+    valid(type(wire['v']) is int and wire['v'] == 2, 'unsupported version')
+    for key in ('p', 'm', 'f', 'o'):
+        valid(isinstance(wire[key], list), f'{key} must be an array')
+    gold, pred, ledger = inp['gold'], inp['predictions'], inp['gold_ledger']
+    zh = (lang or inp.get('provenance', {}).get('lang', 'en')) == 'zh-cn'
+
+    def at(rows, index):
+        valid(type(index) is int, 'index must be an integer')
+        valid(1 <= index <= len(rows), f'index {index} outside 1..{len(rows)}')
+        return rows[index - 1]
+
+    def row(value, lengths):
+        valid(isinstance(value, list) and len(value) in lengths, f'decision row needs {lengths} elements')
+
+    def note(value):
+        valid(isinstance(value, str) and bool(value.strip()), 'explanation must be a nonempty string')
+        return value
+
+    result = {'pairs': [], 'missed': [], 'false_positives': [], 'overrides': []}
+    paired_pred = {}
+    for value in wire['p']:
+        row(value, (2, 3))
+        g, p = at(gold, value[0])['prov_id'], at(pred, value[1])['prov_id']
+        result['pairs'].append({'gold': g, 'pred': p,
+                                'note': note(value[2]) if len(value) == 3 else ''})
+        paired_pred[value[1]] = g
+    for value in wire['m']:
+        row(value, (2, 3))
+        g = at(gold, value[0])['prov_id']
+        valid(type(value[1]) is int, 'miss target must be a prediction index or 0')
+        if value[1] == 0:
+            valid(len(value) == 3, 'genuine miss needs an explanation')
+            text = note(value[2])
+        else:
+            p = at(pred, value[1])
+            valid(value[1] in paired_pred, 'merge target must be paired')
+            if inp['source']['lines_comparable']:
+                valid(bool(line_set(at(gold, value[0])['source_line_spans']) &
+                           line_set(p['source_line_spans'])), 'merge target shares no source line')
+            text = (f'合并到 {p["prov_id"]}（已配对 {paired_pred[value[1]]}）' if zh else
+                    f'merged into {p["prov_id"]} (paired with {paired_pred[value[1]]})')
+            if len(value) == 3:
+                text += ': ' + note(value[2])
+        result['missed'].append({'gold': g, 'note': text})
+    causes = {'x': 'gold_excluded', 's': 'split', 'd': 'duplicate', 'n': 'not_in_gold', 'i': 'invalid'}
+    for value in wire['f']:
+        row(value, (3, 4))
+        pid = at(pred, value[0])['prov_id']
+        valid(isinstance(value[1], str) and value[1] in causes, 'unknown false-positive cause')
+        code, target = value[1:3]
+        out = {'pred': pid, 'cause': causes[code]}
+        if code == 'x':
+            candidate = at(ledger, target)
+            out.update(gold_candidate_id=candidate['candidate_id'], rule_id=candidate['rule_id'])
+            text = candidate.get('reason') or candidate['rule_id']
+        elif code == 's':
+            out['gold'] = at(gold, target)['prov_id']
+            text = ('拆分自 ' if zh else 'split from ') + out['gold']
+        elif code == 'd':
+            out['of'] = at(pred, target)['prov_id']
+            valid(target != value[0], 'duplicate cannot refer to itself')
+            text = ('重复 ' if zh else 'duplicate of ') + out['of']
+        else:
+            valid(target is None and len(value) == 4, 'not-in-gold/invalid require null target and explanation')
+            text = ''
+        out['note'] = note(value[3]) if len(value) == 4 else text
+        result['false_positives'].append(out)
+    seen_overrides = set()
+    for value in wire['o']:
+        row(value, (3,))
+        g = at(gold, value[0])['prov_id']
+        valid(type(value[1]) is bool, 'subject override must contain a boolean')
+        valid(g not in seen_overrides, 'duplicate subject override')
+        seen_overrides.add(g)
+        result['overrides'].append({'gold': g, 'field': 'subject', 'correct': value[1],
+                                    'reason': note(value[2])})
+    check_matches(inp, result)
+    duplicates = {r['pred']: r['of'] for r in result['false_positives'] if r['cause'] == 'duplicate'}
+    for pid in duplicates:
+        seen = set()
+        while pid in duplicates:
+            valid(pid not in seen, 'duplicate references form a cycle')
+            seen.add(pid)
+            pid = duplicates[pid]
+    return result
+
+
 def suggestions(gold_rows, pred_rows, weights):
     """For each gold row, predicted rows sharing a source line, the most similar text first."""
     result = {}
@@ -347,7 +455,8 @@ def export(record_id, version=None, model=None, run_id=None, out_dir=None):
                        'prompt_names': sorted({p.get('prompt_name') or '' for p in preds}),
                        'created_at': [min(p['created_at'] for p in preds), max(p['created_at'] for p in preds)]},
         'source': {'path': str(source_path) if source_path else None, 'current_sha256': current_sha,
-                   'gold_sha256': run['source_sha256'], 'lines_comparable': lines_comparable},
+                   'gold_sha256': run['source_sha256'], 'lines_comparable': lines_comparable,
+                   'available': source_path is not None},
         'warnings': warnings,
         'gold': gold_rows,
         'gold_ledger': [c for c in (gold.get('candidates') or []) if c.get('decision') in ('excluded', 'duplicate')],
@@ -358,6 +467,8 @@ def export(record_id, version=None, model=None, run_id=None, out_dir=None):
     out_dir.mkdir(parents=True, exist_ok=False)
     path = out_dir / 'input.json'
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding='utf-8')
+    (out_dir / 'matching-input.json').write_text(
+        json.dumps(matching_view(payload), ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
     return path, payload
 
 
@@ -557,18 +668,35 @@ def main():
     sc.add_argument('--dir', required=True, type=Path, help='directory holding input.json and matches.json')
     sc.add_argument('--scorer-model', required=True, help='exact ID of the model that made the matches')
     sc.add_argument('--weights', help=f'JSON file of relative weights (default: {WEIGHTS_FILE.name} in the skill dir)')
+    sc.add_argument('--require-compact', action='store_true', help='require the strict v2 decision contract')
+    sc.add_argument('--lang', choices=('en', 'zh-cn'), help='language for expanded diagnostic notes')
+    project = sub.add_parser('project', help='derive matching-input.json from the complete input.json snapshot')
+    project.add_argument('--dir', required=True, type=Path)
     args = parser.parse_args()
     if args.action == 'export':
         require(args.record_id > 0, 'record ID must be a positive integer')
         path, payload = export(args.record_id, args.gold_version, args.gold_model, args.gold_run_id, args.out_dir)
         run = payload['gold_run']
-        print(json.dumps({'input': str(path), 'gold_run': f'{run["skill_version"]}/{run["model_name"]}/'
+        print(json.dumps({'input': str(path), 'matching_input': str(path.parent / 'matching-input.json'),
+                          'source_path': payload['source']['path'],
+                          'lines_comparable': payload['source']['lines_comparable'],
+                          'gold_run': f'{run["skill_version"]}/{run["model_name"]}/'
                           f'{run["benchmark_run_id"]}', 'gold_rows': len(payload['gold']),
                           'predicted_rows': len(payload['predictions']), 'warnings': payload['warnings']},
                          ensure_ascii=False))
         return
     inp = json.loads((args.dir / 'input.json').read_text(encoding='utf-8'))
+    if args.action == 'project':
+        (args.dir / 'matching-input.json').write_text(
+            json.dumps(matching_view(inp), ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
+        return
     matches = json.loads((args.dir / 'matches.json').read_text(encoding='utf-8'))
+    if args.require_compact or (isinstance(matches, dict) and set(matches) & {'v', 'p', 'm', 'f', 'o'}):
+        matches = expand_matches(inp, matches, args.lang)
+    else:
+        check_matches(inp, matches)
+    (args.dir / 'matches-expanded.json').write_text(
+        json.dumps(matches, ensure_ascii=False, indent=2), encoding='utf-8')
     result = score(inp, matches, load_weights(args.weights))
     result.update(record_id=inp['record_id'], gold_run=inp['gold_run'], scorer_model=args.scorer_model,
                   scored_at=datetime.now().isoformat(timespec='seconds'))
