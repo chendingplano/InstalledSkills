@@ -1,0 +1,4 @@
+interface:
+  display_name: "Extract Products Benchmark"
+  short_description: "Build audited product-relation benchmarks from document lines"
+  default_prompt: "Use $extract-products-benchmark to extract and audit products and their relations for kb.inputs.id 123 and save the benchmark to testbed.products."

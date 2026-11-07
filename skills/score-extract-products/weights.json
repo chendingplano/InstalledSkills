@@ -1,0 +1,12 @@
+{
+  "relation_type": 20,
+  "requirement_text": 15,
+  "product_type": 10,
+  "name": 10,
+  "lines": 10,
+  "obligation_level": 10,
+  "parameters": 10,
+  "conditions": 5,
+  "related_products": 5,
+  "responsible_actor": 5
+}

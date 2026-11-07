@@ -1,0 +1,10 @@
+{
+  "versions": {
+    "1.0.0": {
+      "rules": "1.0.0.md",
+      "sha256": "be4574c4e5538be4f716059d1cc98fed60d688c7974429c5bdea27d1c889877a",
+      "released": "2026-11-08",
+      "notes": "First release: product model of extract_products (spec producthood gate, prompts mentions-v2 / enrich-v4 / merged-v2 vocabularies); user rulings: one row per (product, relation_type) grouped by product_key, waste categories and streams are products, enrichment fields graded, first gold run record 416."
+    }
+  }
+}
