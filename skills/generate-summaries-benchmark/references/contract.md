@@ -24,7 +24,7 @@ For a filename-only request, query `kb.inputs` metadata to identify the record w
 
 ## Payload
 
-Preserve prepared identity, record/source/chunk fingerprints, chunk sequence and coverage. Fill each summary's `language`, `summary_text`, `summary_text_en`, `keywords`, `keywords_en`, `units`, `empty_reason`, `completeness_review` and `correctness_review`. `source_line_spans` is the ordered full input as singleton strings; `regular_lines` and `overlap_lines` are integer arrays. These spans describe input coverage, not selected evidence. No parent or child summaries exist in this contract.
+Preserve prepared identity, record/source/chunk fingerprints, chunk sequence and coverage. Fill each summary's `language`, `summary_text`, `summary_text_en`, `keywords`, `keywords_en`, `units`, `empty_reason`, `completeness_review` and `correctness_review`. `source_line_spans` is the ordered full input as compact strings: a contiguous run is one `"a-b"` range and an isolated line is a singleton, e.g. `["88-103"]` or `["2", "4"]`, never one string per line; `regular_lines` and `overlap_lines` are integer arrays. These spans describe input coverage, not selected evidence. No parent or child summaries exist in this contract.
 
 Example unit (fictional source content: `Storage shall remain at or below 8°C.`):
 

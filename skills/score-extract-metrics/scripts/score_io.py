@@ -35,21 +35,27 @@ STAND_IN_DROPPED_KINDS = {'inspection_requirement', 'delegated_requirement'}
 # (lines, when the source changed since the gold run) is left out and the rest renormalized.
 # Scoring version 3 (2026-10-16) makes missing and false metrics components of their own, weighted
 # above every field check. Version 2 was soft F1 over per-pair credit (value .25, condition .20,
-# range_type/kind/unit .15, lines .10); version 1 had no condition check. Scores of different
-# scoring versions are not comparable.
-SCORING_VERSION = 3
-FIELD_NAMES = ('value', 'range_type', 'kind', 'unit', 'lines', 'condition')
+# range_type/kind/unit .15, lines .10); version 1 had no condition check. Scoring version 4
+# (2026-10-18, openspec change metric-frame) splits the condition weight over the frame: condition 5,
+# uses 2 (the resources with their specs), method 1. Against gold older than rules 9.0.0, which has
+# no frame and keeps apparatus and methods in condition, uses and method are not checked and the
+# condition check reads the prediction's frame back into its condition. Scores of different
+# scoring versions are not comparable. Version 5 adds relation-aware structured value checks;
+# collection membership and relationship cannot be bypassed by a positive value override.
+SCORING_VERSION = 5
+FIELD_NAMES = ('value', 'range_type', 'kind', 'unit', 'lines', 'condition', 'uses', 'method')
 COUNT_NAMES = ('missing', 'false_positive')
 DEFAULT_WEIGHTS = {'missing': 30, 'false_positive': 30, 'value': 10, 'range_type': 6, 'kind': 6,
-                   'unit': 6, 'lines': 4, 'condition': 8}
+                   'unit': 6, 'lines': 4, 'condition': 5, 'uses': 2, 'method': 1}
+FRAME_GOLD_VERSION = '9.0.0'  # first gold rules that annotate frame
 WEIGHTS_FILE = SKILL_DIR / 'weights.json'
 # Only notation or wording can differ for these; range_type and kind are enums, a mismatch is
 # always real.
-OVERRIDABLE = {'value', 'unit', 'lines', 'condition'}
+OVERRIDABLE = {'value', 'unit', 'lines', 'condition', 'uses', 'method'}
 FP_CAUSES = {'gold_excluded', 'duplicate', 'not_in_gold', 'invalid'}
 COMPARATORS = re.compile(r'[<>≤≥＜＞≦≧=]')
 METRIC_FIELDS = '''metric_id metric_name metric_subject metric_desc metric_unit metric_value
-value_range_type value_class value_min value_max condition condition_en formula_or_definition
+value_range_type value_class value_min value_max condition condition_en frame value_structure formula_or_definition
 threshold_or_target source_line_spans reasoning_tags'''.split()
 EXIT_NO_GOLD = 3
 EXIT_NO_PREDICTIONS = 4
@@ -322,8 +328,49 @@ def same_number(a, b):
     return a is not None and b is not None and abs(a - b) <= 1e-9 * max(1.0, abs(a), abs(b))
 
 
+def value_structure_of(row):
+    structure = row.get('value_structure')
+    if isinstance(structure, str):
+        try:
+            structure = json.loads(structure)
+        except ValueError:
+            return {}
+    return structure if isinstance(structure, dict) else {}
+
+
+def structured_value_ok(gold, pred):
+    g, p = value_structure_of(gold), value_structure_of(pred)
+    if not g and not p:
+        return None
+    if not g and p:
+        try:
+            bio.validate_value_structure({**pred, 'value_structure': p})
+        except (ValueError, TypeError, KeyError):
+            return False
+        return None if norm(gold.get('metric_value')) == norm(pred.get('metric_value')) else False
+    if not g or not p or g.get('kind') != p.get('kind'):
+        return False
+    try:
+        for structure, metric in ((g, gold), (p, pred)):
+            bio.validate_value_structure({**metric, 'value_structure': structure})
+    except (ValueError, TypeError, KeyError):
+        return False
+    if g.get('kind') in {'expression', 'unresolved'}:
+        return norm(gold.get('metric_value')).replace(' ', '') == norm(pred.get('metric_value')).replace(' ', '')
+    def member(value):
+        n = number(value)
+        return format(n, '.12g') if n is not None else norm(value).replace(' ', '')
+    gv, pv = [member(v) for v in g['values']], [member(v) for v in p['values']]
+    if g.get('kind') in {'alternatives', 'required_points'}:
+        return len(gv) >= 2 and len(gv) == len(set(gv)) and sorted(gv) == sorted(pv)
+    return bool(gv) and gv == pv
+
+
 def value_ok(gold, pred):
     """The stated value: endpoints for a range, the bare number otherwise, empty for non-numeric gold."""
+    structured = structured_value_ok(gold, pred)
+    if structured is not None:
+        return structured
     range_type = norm(gold.get('value_range_type'))
     if range_type not in bio.NUMERIC_RANGE_TYPES:
         return norm(pred.get('metric_value')) == ''
@@ -357,8 +404,71 @@ def condition_parts(text):
     return parts
 
 
-def condition_ok(gold, pred):
-    return condition_parts(gold.get('condition')) == condition_parts(pred.get('condition'))
+def frame_of(row):
+    frame = row.get('frame')
+    if isinstance(frame, str):
+        try:
+            frame = json.loads(frame)
+        except ValueError:
+            frame = None
+    return frame if isinstance(frame, dict) else {}
+
+
+def compact_text(text):
+    return norm(text).replace(' ', '').translate(CONDITION_DASHES)
+
+
+def spec_text(spec):
+    return compact_text(f'{spec.get("value") or ""}{spec.get("unit") or ""}')
+
+
+def legacy_frame_parts(row):
+    """The frame read back as the qualifier values gold before rules 9.0.0 kept in condition."""
+    frame, parts = frame_of(row), set()
+    for res in frame.get('uses') or []:
+        specs = ''.join(spec_text(s) for s in res.get('spec') or [])
+        parts.add(specs + compact_text(res.get('name')))
+    for q in frame.get('method') or []:
+        parts.add(compact_text(q.get('value')))
+    stage = (frame.get('procedure') or {}).get('stage')
+    if stage:
+        parts.update(p for p in re.split(r'[;；]', compact_text(stage)) if p)
+    parts.discard('')
+    return parts
+
+
+def condition_ok(gold, pred, frame_gold=True):
+    if frame_gold:
+        return condition_parts(gold.get('condition')) == condition_parts(pred.get('condition'))
+    return condition_parts(gold.get('condition')) == condition_parts(pred.get('condition')) | legacy_frame_parts(pred)
+
+
+def uses_signature(row):
+    """Resources as (role, name, specs): name and spec values compacted, the spec property ignored."""
+    return sorted((norm(r.get('role')), compact_text(r.get('name')),
+                   tuple(sorted(spec_text(s) for s in r.get('spec') or [])))
+                  for r in frame_of(row).get('uses') or [])
+
+
+def uses_ok(gold, pred):
+    """Every resource matched once: same role (when both give one), names equal or one containing the
+    other, and the same spec values and units."""
+    g, p = uses_signature(gold), uses_signature(pred)
+    if len(g) != len(p):
+        return False
+    remaining = list(p)
+    for role, name, specs in g:
+        hit = next((x for x in remaining if (not role or not x[0] or role == x[0]) and x[2] == specs
+                    and name and x[1] and (name in x[1] or x[1] in name)), None)
+        if hit is None:
+            return False
+        remaining.remove(hit)
+    return True
+
+
+def method_ok(gold, pred):
+    values = lambda row: {compact_text(q.get('value')) for q in frame_of(row).get('method') or []} - {''}
+    return values(gold) == values(pred)
 
 
 def kind_of(row):
@@ -368,14 +478,20 @@ def kind_of(row):
                                'reasoning_tags': [str(t) for t in as_list(row.get('reasoning_tags'))]})
 
 
-def field_checks(gold, pred, lines_comparable=True):
+def field_checks(gold, pred, lines_comparable=True, frame_gold=True):
     return {'value': value_ok(gold, pred),
             'range_type': norm(gold.get('value_range_type')) == norm(pred.get('value_range_type')),
             'kind': gold['kind'] == pred['kind'],
             'unit': unit_ok(gold, pred),
-            'condition': condition_ok(gold, pred),
+            'condition': condition_ok(gold, pred, frame_gold),
+            'uses': uses_ok(gold, pred) if frame_gold else None,
+            'method': method_ok(gold, pred) if frame_gold else None,
             'lines': bool(line_set(gold.get('source_line_spans')) & line_set(pred.get('source_line_spans')))
                      if lines_comparable else None}
+
+
+def gold_has_frame(run):
+    return bio.version_key(run.get('skill_version') or '0') >= bio.version_key(FRAME_GOLD_VERSION)
 
 
 def load_weights(path=None, overrides=()):
@@ -419,7 +535,7 @@ def compact(row):
     return out
 
 
-def suggestions(gold_rows, pred_rows, lines_comparable):
+def suggestions(gold_rows, pred_rows, lines_comparable, frame_gold=True):
     """For each gold row, predicted rows sharing a source line, best field agreement first."""
     result = {}
     for g in gold_rows:
@@ -428,7 +544,7 @@ def suggestions(gold_rows, pred_rows, lines_comparable):
         for p in pred_rows:
             if gl & line_set(p['source_line_spans']):
                 near.append({'pred': p['metric_id'],
-                             'credit': round(pair_credit(field_checks(g, p, lines_comparable)), 2)})
+                             'credit': round(pair_credit(field_checks(g, p, lines_comparable, frame_gold)), 2)})
         result[g['metric_id']] = sorted(near, key=lambda s: -s['credit'])[:5]
     return result
 
@@ -460,6 +576,10 @@ def export(record_id, version=None, model=None, run_id=None, out_dir=None):
         source_path, current_sha = None, None
         warnings.append(f'Source line file not readable ({exc}); line checks disabled')
     lines_comparable = current_sha is not None and current_sha == run['source_sha256']
+    if not gold_has_frame(run):
+        warnings.append(f'Gold run uses rules {run["skill_version"]} (before {FRAME_GOLD_VERSION}): it has no frame, so '
+                        'the uses and method checks are disabled and the condition check reads the '
+                        "prediction's frame back into its condition")
     if current_sha and not lines_comparable:
         warnings.append('The line file changed since the gold run (SHA-256 differs); line numbers are '
                         'not comparable, so the lines check is disabled and matching relies on content')
@@ -494,7 +614,7 @@ def export(record_id, version=None, model=None, run_id=None, out_dir=None):
         'gold': gold_rows,
         'gold_ledger': [c for c in candidates if c.get('decision') in ('excluded', 'duplicate')],
         'predictions': pred_rows,
-        'suggestions': suggestions(gold_rows, pred_rows, lines_comparable),
+        'suggestions': suggestions(gold_rows, pred_rows, lines_comparable, gold_has_frame(run)),
     }
     out_dir = Path(out_dir) if out_dir else default_out_dir(source_path or Path.cwd() / 'x', run)
     out_dir.mkdir(parents=True, exist_ok=False)
@@ -580,12 +700,16 @@ def score(inp, matches, weights=None):
     gold = {g['metric_id']: g for g in inp['gold']}
     pred = {p['metric_id']: p for p in inp['predictions']}
     comparable = inp['source']['lines_comparable']
+    frame_gold = gold_has_frame(inp.get('gold_run') or {'skill_version': FRAME_GOLD_VERSION})
     overrides = {(o['gold'], o['field']): o for o in matches.get('overrides', [])}
     pairs = []
     for p in matches.get('pairs', []):
-        checks = field_checks(gold[p['gold']], pred[p['pred']], comparable)
+        checks = field_checks(gold[p['gold']], pred[p['pred']], comparable, frame_gold)
         for field in checks:
             if (p['gold'], field) in overrides and checks[field] is not None:
+                require(field != 'value' or structured_value_ok(gold[p['gold']], pred[p['pred']]) is not False
+                        or not overrides[(p['gold'], field)]['correct'],
+                        'A value override cannot erase a collection relationship or member mismatch')
                 checks[field] = overrides[(p['gold'], field)]['correct']
         pairs.append({**p, 'checks': checks, 'credit': pair_credit(checks, weights)})
     main = metrics_for(set(gold), pairs, len(pred), weights)

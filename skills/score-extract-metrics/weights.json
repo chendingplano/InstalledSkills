@@ -2,9 +2,11 @@
   "missing": 30,
   "false_positive": 30,
   "value": 10,
-  "condition": 8,
+  "condition": 5,
   "range_type": 6,
   "kind": 6,
   "unit": 6,
-  "lines": 4
+  "lines": 4,
+  "uses": 2,
+  "method": 1
 }

@@ -15,6 +15,14 @@ Gold rows store their run ID in `testbed.metrics.run_id`. The export helper maps
 it to the existing `benchmark_run_id` field in scoring artifacts and joins run
 audits on `m.run_id = r.benchmark_run_id` plus skill name, version and model.
 
+Scoring version 5 preserves structured value relationships. For rules 10.0.0 gold, alternatives
+and required point collections are one assertion: match one prediction to it, then mark extra
+independently split members as invalid false positives. A paired first member still fails the
+value check. `value_structure.kind` and all members must match (order is irrelevant only for
+alternatives and required_points); an interval cannot replace a discrete set. Composite order and
+expressions remain significant. Never override a lost member or changed relationship as notation.
+Earlier gold runs retain their original row granularity; scores across scoring versions differ.
+
 The work is split on purpose. **You** decide which predicted row states the same assertion as
 which gold row. **The script** does every check that can be computed, and the arithmetic, so the
 number can be reproduced from the saved files. Never compute or adjust the score by hand.
@@ -90,7 +98,7 @@ The checks already normalize notation: full-width/half-width forms (`0～4` = `0
 (`20.0` = `20`). These need no override.
 
 **Overrides** correct a field check that the normalized comparison still got wrong. They are allowed only for
-`value`, `unit`, `lines` and `condition`, and each needs a reason. Use one only when both sides state the same
+`value`, `unit`, `lines`, `condition`, `uses` and `method`, and each needs a reason. Use one only when both sides state the same
 thing in different notation: a bare count unit and its per-object form (个 / 个/户), a unit
 conversion, or a value given in words that is unambiguous with its unit ("每日" with 次/日 = 1).
 Do not use one because a mistake looks minor. `range_type` (the comparator) and `kind` are never
@@ -106,6 +114,17 @@ found several that had not been overridden. A missing qualifier, an extra one
 (a repeated subject or property, or a condition the source does not state) or a different one is a
 real error.
 
+**The frame (scoring version 4, 2026-10-18).** Since the openspec change metric-frame a metric row has a
+`frame` besides its condition: `uses` (the resources the value uses, each with a role and its spec, such as
+葡萄糖 {浓度 50 %} or 量块 {等级 5 等}), `method` (the test method, route or mode) and `procedure` (the step;
+not checked). The `uses` check passes when every resource is matched once: the same role when both
+give one, names equal or one containing the other (葡萄糖 / 葡萄糖注射液), and the same spec values and units.
+The `method` check compares the method values, labels ignored. Against gold older than rules 9.0.0, which has
+no frame and keeps apparatus, methods and stages in `condition`, both checks are disabled and the condition
+check adds the prediction's frame values (with a spec written before the name, as the old gold wrote it:
+`5等量块`, `50％葡萄糖`) to its condition before comparing. A strength the extractor keeps in `uses` is no longer
+a predicted row, so a gold row for it (rules before 9.0.0 sometimes kept one) is a miss, not a pair.
+
 ## 3. Score
 
 ```bash
@@ -116,7 +135,7 @@ python3 $S score --dir <directory of input.json> --scorer-model <your exact mode
 The script writes `score.json` and `report.md` in that directory (next to the source line file,
 under `extract-metrics-scores/`, outside Git). Fix any refusal in `matches.json` and run it again.
 
-How the score is computed (scoring version 3, 2026-10-16): the score is a weighted mean of eight
+How the score is computed (scoring version 5, 2026-10-18): the score is a weighted mean of ten
 components, each between 0 and 1. Missing and false metrics are components of their own and carry
 the highest weights.
 
@@ -125,25 +144,29 @@ the highest weights.
 | `missing` | share of gold metrics that were found (matched / gold rows) | 30 |
 | `false_positive` | share of predicted rows that are real (matched / predicted rows) | 30 |
 | `value` | share of matched pairs whose value check passes | 10 |
-| `condition` | same, condition check | 8 |
+| `condition` | same, condition check | 5 |
+| `uses` | same, resources and their specs (gold rules 9.0.0+) | 2 |
+| `method` | same, method values (gold rules 9.0.0+) | 1 |
 | `range_type`, `kind`, `unit` | same, comparator / statement kind / unit | 6 each |
 | `lines` | same, overlapping source lines | 4 |
 
 **Score = round(100 × weighted mean)**, clamped to 1–100. Weights are relative and normalized, so
 only their ratios matter. A field check that cannot be made on any pair (`lines`, when the source
-changed) is left out and the rest renormalized. The report also gives a score without
+changed; `uses` and `method` against gold before rules 9.0.0) is left out and the rest renormalized. The report also gives a score without
 test-method settings (`test_parameter` gold rows), because production extraction may not target
 them, plus the old soft F1 (version 2 style) as a diagnostic.
 
-**Configuring the weights.** Edit `weights.json` next to this file (all eight names; missing
+**Configuring the weights.** Edit `weights.json` next to this file (all ten names; missing
 names fall back to the defaults above). For one run, pass `--weights <file.json>` or repeat
 `--weight NAME=VALUE`, for example `--weight missing=50 --weight lines=0`. Unknown names,
 negative values and all-zero weights are refused. The weights used are saved in `score.json` and
 the report. A score is comparable with another only when the gold run, the scoring version **and
 the weights** are the same: say which weights you used if they differ from `weights.json`.
 
+Version 3 (2026-10-16) had the same components without `uses` and `method`, with condition 8.
 Version 2 was soft F1 over per-pair credit (value .25, condition .20, comparator/kind/unit .15,
-lines .10); version 1 had no condition check. Never compare scores across versions.
+lines .10); version 1 had no condition check. Never compare scores across versions: the report
+and `score.json` record the scoring version, so check it before giving a delta.
 
 ## 4. Report to the user
 

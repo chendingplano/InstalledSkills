@@ -89,6 +89,29 @@ def expand(text):
     return result
 
 
+def compact(numbers):
+    # Contiguous runs become "a-b"; isolated lines stay singleton strings.
+    runs = []
+    for n in sorted(set(numbers)):
+        if runs and n == runs[-1][1] + 1:
+            runs[-1][1] = n
+        else:
+            runs.append([n, n])
+    return [str(a) if a == b else f'{a}-{b}' for a, b in runs]
+
+
+def expand_spans(spans):
+    result = []
+    for span in spans:
+        require(isinstance(span, str) and re.fullmatch(r'[1-9][0-9]*(?:-[1-9][0-9]*)?', span),
+                'Invalid source line span')
+        first, _, last = span.partition('-')
+        last = last or first
+        require(int(first) <= int(last), 'Invalid source line span')
+        result.extend(range(int(first), int(last) + 1))
+    return result
+
+
 def load_chunks(path, lines):
     raw = Path(path).read_bytes()
     entries = [text.strip() for text in raw.decode('utf-8').splitlines() if text.strip()]
@@ -108,7 +131,7 @@ def load_chunks(path, lines):
         require(not overlap or overlap == previous_full[-len(overlap):], 'Invalid carried overlap')
         seen.extend(regular)
         chunks.append({'summary_seq_no': len(chunks) + 1, 'overlap_lines': overlap,
-                       'regular_lines': regular, 'source_line_spans': [str(n) for n in full]})
+                       'regular_lines': regular, 'source_line_spans': compact(full)})
         previous_full = full
     expected = [n for n, line in lines.items() if line['type'].lower() != 'toc']
     require(seen == expected, 'Missing, repeated or reordered regular source coverage')
@@ -134,7 +157,7 @@ def prepare(record, chunks_path, model, version='1.0.0', budget=600):
                    record_sha256=record_hash(record), source_filename=str(path), source_sha256=source_sha,
                    chunks_filename=str(Path(chunks_path).resolve()), chunks_sha256=chunk_sha,
                    budget_chars=budget, review_mode='', limitations=[], blocking_issues=[], summaries=chunks)
-    exported = [{**c, 'lines': [lines[int(n)] for n in c['source_line_spans']]} for c in chunks]
+    exported = [{**c, 'lines': [lines[n] for n in expand_spans(c['source_line_spans'])]} for c in chunks]
     return payload, exported
 
 
@@ -176,7 +199,7 @@ def validate(record, payload):
             if payload['review_mode'] == 'independent':
                 require(review['reviewer'] != payload['model_name'], 'Reviewer must differ from author')
         require(isinstance(summary['units'], list), 'Units must be an array')
-        full = {int(n) for n in chunk['source_line_spans']}
+        full = set(expand_spans(chunk['source_line_spans']))
         if summary['empty_reason'].strip():
             require(not any(summary[k] for k in ('summary_text', 'summary_text_en', 'keywords', 'keywords_en', 'units')),
                     'Empty chunk contains summary content')

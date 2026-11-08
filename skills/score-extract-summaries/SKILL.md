@@ -36,7 +36,8 @@ For every aligned prediction:
 
 1. Judge every **included** gold information unit: `1` fully preserves its meaning, `0.5` retains the central proposition with a material missing/changed qualifier, `0` absent, contradicted or unrecognizable. Preserve actors, objects, modality, comparators, units, conditions, exceptions and negation. Give a reason and exact prediction spans for positive credit. Intentionally omitted gold units are diagnostic only and do not reduce coverage.
 2. Segment the entire source-language prediction into atomic factual claims. Mark each `supported`, `contradicted` or `unsupported` against the **full original chunk**, not only the gold wording. Provide source spans for support. Correct additional facts absent from the gold inventory are allowed. Combining a correct threshold and an invented instruction in one supported claim is invalid. A true quotation can still be misleading when it drops a governing header, exception or scope.
-3. Record readable diagnostics for repetition, coherence, regular payload displaced by overlap, language metadata, keywords, translation fidelity where present, and critical errors. English translation and keywords are diagnostic rather than scored: extracts do not promise these fields. Empty/image-only gold does not license invented text; disclose inaccessible image information and gold limitations.
+3. Judge **similarity** for each aligned chunk: a score from 0 to 1 for how closely the prediction's source-language `summary_text` matches the gold `summary_text` in meaning, counting omissions, additions and changed qualifiers. Compare only the source-language text. Gold English summaries (`summary_text_en`) and keywords (`keywords`, `keywords_en`) are excluded from similarity and from the score. Language tags `zh` and `zh-cn` count as the same language.
+4. Record readable diagnostics for repetition, coherence, regular payload displaced by overlap, language metadata, keywords, translation fidelity where present, and critical errors. English translation and keywords are diagnostic rather than scored: extracts do not promise these fields. Empty/image-only gold does not license invented text; disclose inaccessible image information and gold limitations.
 
 Paraphrases earn full credit when equivalent. Do not use lexical overlap, ROUGE, exact quotation coverage or the frozen offline span scorer under `ChenWeb/benchmark/summaries/` as a substitute for semantic judgment. An `included=false` fact may support an additional prediction claim without becoming a required coverage target. Gold defects are reported separately; never rewrite gold or award credit to hide them.
 
@@ -50,18 +51,19 @@ python3 $S score --dir <export directory> --scorer-model '<actual runtime model 
 
 Use the available session label and disclose uncertainty if no exact model ID is exposed. Do not ask the user to invent a model identity. The helper writes `score.json` and `report.md`; both retain the scoring version, weights and input/review hashes. Keep `input.json` and `judgments.json` beside them. Fix validation errors in judgments, then rerun. Never adjust the numeric score by hand.
 
-Scoring version **1.0.0**:
+Scoring version **1.1.0**:
 
 | Component | Definition | Weight |
 |---|---|---:|
 | `chunks` | F1 of aligned row count: `2 × matches / (gold rows + predictions)` | 10 |
 | `coverage` | Importance-weighted credit over all included gold units; missing chunks earn zero | 30 |
 | `faithfulness` | Per-aligned-chunk share of atomic claims supported by source; sum divided by larger row count | 30 |
+| `similarity` | Sum of per-aligned-chunk similarity (0–1, source-language summary vs gold) divided by larger row count | 10 |
 | `critical` | Importance-weighted coverage of included critical units | 15 |
 | `provenance` | Correct source-line provenance for each aligned row; sum divided by larger row count | 10 |
 | `budget` | Aligned summaries within gold's non-whitespace Unicode character budget; sum divided by larger row count | 5 |
 
-Generated summaries must cite the full input line set including overlap. Extracts cite selected passages, so their line set must be within the chunk and cover the review's evidence lines; their saved sentence spans must also reproduce the extracted text. Empty text earns faithfulness 1 only for gold explicitly marked empty; otherwise 0. Missing and extra rows earn no faithfulness, provenance or budget credit. Components with no gold units (coverage/critical) are N/A and their weights are excluded. **Score = round-half-up(100 × weighted mean)**, clamped to 1–100; 1 denotes complete failure. A critical defect is prominently reported even when other components keep the aggregate high. Diagnostic fields never silently alter the score.
+Generated summaries must cite the full input line set including overlap. Extracts store the whole chunk line set in `source_line_spans` (the same as the gold chunk), and their selected sentence lines and claim evidence must lie within it; their saved sentence spans must also reproduce the extracted text. Empty text earns faithfulness 1 only for gold explicitly marked empty; otherwise 0. Missing and extra rows earn no faithfulness, provenance or budget credit. Components with no gold units (coverage/critical) are N/A and their weights are excluded. **Score = round-half-up(100 × weighted mean)**, clamped to 1–100; 1 denotes complete failure. A critical defect is prominently reported even when other components keep the aggregate high. Diagnostic fields never silently alter the score.
 
 Defaults live in `weights.json`. `--weights <file.json>` overrides named weights; missing names retain defaults. Unknown names, negative/nonfinite values and all-zero applicable weights are refused. Compare scores only for the same gold run, source/chunks, budget, scoring version and weights. Candidate settings and review differences also affect comparability. Production sentence-count budgets differ from the gold character budget: report both; this skill does not rerun either pipeline to equalize them.
 

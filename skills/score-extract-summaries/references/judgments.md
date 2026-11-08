@@ -26,7 +26,8 @@ Write `judgments.json` alongside `input.json`. Compute `input_sha256` with the h
           "evidence": [{"line": 12, "start": 0, "end": 10, "quote": "Keep cool."}]
         }
       ],
-      "diagnostics": "Clear English; translation not applicable. Keywords match."
+      "diagnostics": "Clear English; translation not applicable. Keywords match.",
+      "similarity": {"score": 0.8, "reason": "Same storage instruction; the gold's exception clause is missing."}
     }
   ]
 }
@@ -39,5 +40,7 @@ Offsets are zero-based Unicode code points, exclusive end, indexing the original
 Each supported claim needs one or more source spans in the same chunk. Include table headings, footnotes or exceptions when necessary to support the full meaning. Unsupported claims may have `evidence: []`; contradicted claims should cite contrary source evidence. Claim status is binary credit (supported=1, other=0); unit coverage allows half credit. Review every claim's scope, not just the words within its cited evidence. A sentence containing independently true and false assertions must be split into atomic claims. This prevents hiding an invention inside a mostly correct sentence. The helper verifies span accuracy and complete text accounting; the reviewer remains responsible for atomicity and semantic entailment.
 
 For a 0.5 credit example, gold says “temperature must be at or below 8°C” but prediction says “temperature must be below 8°C”: central constraint retained, boundary changed. Explain and flag this critical error. “Always freeze it” is an additional unsupported instruction unless this chunk supports it; its relation to a maximum temperature alone does not establish a contradiction.
+
+`similarity.score` is a number from 0 to 1 that judges the source-language `summary_text` against the gold `summary_text` in meaning: same actors, conditions, thresholds and exceptions score high; omitted or added material lowers it. Compare only that source-language text. Gold English summaries and keywords (both languages) are excluded from similarity and from the score. Language tags `zh` and `zh-cn` count as the same language. `similarity.reason` is required.
 
 An included unit appearing only in an English translation does not rescue missing source-language coverage. Inspect translation and keywords separately in diagnostics. For comparative runs, keep claim segmentation and interpretation consistent; do not split supported material more finely to inflate faithfulness.

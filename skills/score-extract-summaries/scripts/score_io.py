@@ -13,9 +13,11 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKSPACE = ROOT.parents[2]
-VERSION = '1.0.0'
-DEFAULT_WEIGHTS = {'chunks': 10, 'coverage': 30, 'faithfulness': 30,
+VERSION = '1.1.0'
+DEFAULT_WEIGHTS = {'chunks': 10, 'coverage': 30, 'faithfulness': 30, 'similarity': 10,
                    'critical': 15, 'provenance': 10, 'budget': 5}
+# Language tags that name the same language for comparison purposes.
+LANGUAGE_ALIASES = {'zh-cn': 'zh'}
 
 
 class NoGold(ValueError):
@@ -33,6 +35,11 @@ def require(ok, message):
 
 def fingerprint(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+
+
+def normalize_language(tag):
+    text = str(tag or '').strip().lower().replace('_', '-')
+    return LANGUAGE_ALIASES.get(text, text)
 
 
 def load_benchmark():
@@ -220,6 +227,10 @@ def validate_review(inp, review):
         g, j, text = gold[seq], by_id[pred['id']], pred['summary_text']
         require(isinstance(text, str), 'Prediction text required')
         require(isinstance(j.get('diagnostics'), str) and j['diagnostics'].strip(), 'Chunk diagnostics required')
+        similarity = j.get('similarity')
+        require(isinstance(similarity, dict) and type(similarity.get('score')) in (int, float)
+                and 0 <= similarity['score'] <= 1 and isinstance(similarity.get('reason'), str)
+                and similarity['reason'].strip(), 'Similarity score in [0,1] and reason required')
         units = {u['id']: u for u in g['units'] if u['included']}
         require(len(j['units']) == len(units) and {u['id'] for u in j['units']} == units.keys(),
                 'Judge every included gold unit exactly once')
@@ -280,7 +291,7 @@ def extract_provenance(pred, expected, source):
             require(' '.join(sentence['text'].split()) == ' '.join(' '.join(pieces).split()),
                     'Extract sentence differs from source')
             texts.append(sentence['text'])
-        return pred['summary_text'] == '\n'.join(texts) and line_set(pred['source_line_spans']) == selected
+        return pred['summary_text'] == '\n'.join(texts) and selected <= line_set(pred['source_line_spans'])
     except (ValueError, KeyError, TypeError):
         return False
 
@@ -291,7 +302,7 @@ def score(inp, review, configured=None):
     n, p, matched = len(gold), len(inp['predictions']), len(pairs)
     comps = {'chunks': 2 * matched / (n + p)}
     totals = {'coverage': [0, 0], 'critical': [0, 0]}
-    faith, provenance, within = 0, 0, 0
+    faith, similar, provenance, within = 0, 0, 0, 0
     details = []
     for seq, g in gold.items():
         pred = pairs.get(seq)
@@ -308,24 +319,28 @@ def score(inp, review, configured=None):
             faithful = sum(c['status'] == 'supported' for c in claims) / len(claims) if claims else (
                 1 if g['empty_reason'] else 0)
             faith += faithful
+            similar += j['similarity']['score']
             actual, expected = line_set(pred['source_line_spans']), line_set(g['source_line_spans'])
             # Extracts cite selected passages; generated summaries cite the full chunk input.
             if inp.get('candidate', 'generate') == 'extract':
                 evidence_lines = {e['line'] for c in claims for e in c['evidence']}
                 source = {line['line']: line for line in inp['source']}
-                provenance += bool(actual <= expected and evidence_lines <= actual and
+                # Stored lines are the whole chunk; selected sentence lines must lie inside them.
+                provenance += bool(actual == expected and evidence_lines <= expected and
                                    extract_provenance(pred, expected, source))
             else:
                 provenance += actual == expected
             within += sum(not c.isspace() for c in pred['summary_text']) <= inp['gold']['budget_chars']
             details.append({'seq': seq, 'pred': pred['id'], 'faithfulness': faithful,
-                            'units': j['units'], 'claims': claims, 'diagnostics': j['diagnostics']})
+                            'similarity': j['similarity'], 'units': j['units'], 'claims': claims,
+                            'diagnostics': j['diagnostics'],
+                            'language_match': normalize_language(pred.get('language')) == normalize_language(g.get('language'))})
     for name, (num, den) in totals.items():
         comps[name] = num / den if den else None
     # Missing chunks and extras cannot earn these components; use the larger row count.
     denominator = max(n, p)
-    comps.update(faithfulness=faith / denominator, provenance=provenance / denominator,
-                 budget=within / denominator)
+    comps.update(faithfulness=faith / denominator, similarity=similar / denominator,
+                 provenance=provenance / denominator, budget=within / denominator)
     active = {k: v for k, v in w.items() if comps[k] is not None}
     require(sum(active.values()) > 0, 'No applicable positive weights')
     total = 100 * sum(comps[k] * v for k, v in active.items()) / sum(active.values())
@@ -351,7 +366,9 @@ def report(inp, review, result, model):
               f"Extra predictions: {result['extra_predictions']}", '', '## Warnings and limitations', '']
     lines += ['- ' + x for x in inp.get('warnings', []) + review['limitations']]
     for item in result['details']:
-        lines += ['', f"## Chunk {item['seq']} (prediction {item['pred']})", '', item['diagnostics']]
+        lines += ['', f"## Chunk {item['seq']} (prediction {item['pred']})", '', item['diagnostics'],
+                  f"- Similarity {item['similarity']['score']:.2f} — {item['similarity']['reason']}",
+                  f"- Language {'matches' if item['language_match'] else 'differs from'} gold (zh and zh-cn are the same)"]
         lines += [f"- Unit {u['id']}: {u['credit']} — {u['reason']}" for u in item['units']]
         lines += [f"- {c['status']}: {c['quote']} — {c['reason']}" for c in item['claims']]
     lines += ['', '## Snapshot identity', '',

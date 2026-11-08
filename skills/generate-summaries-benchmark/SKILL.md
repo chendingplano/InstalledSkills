@@ -1,6 +1,7 @@
 ---
 name: generate-summaries-benchmark
 description: Build independently reviewed gold summaries for every leaf chunk of a kb.inputs document's canonical line file and save versioned, source-backed snapshots to testbed.summaries. Use for gold summaries, ground truth or summary benchmarks; production summarization and scoring are separate workflows.
+disable-model-invocation: true
 ---
 
 # Generate Summaries Benchmark

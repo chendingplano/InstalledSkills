@@ -18,7 +18,8 @@ def fixture():
                                      'status': 'supported', 'reason': 'source states it',
                                      'evidence': [{'line': 1, 'start': 0, 'end': 10,
                                                    'quote': 'Keep cool.'}]}],
-                         'diagnostics': 'Readable; English, translation not applicable.'}]}
+                         'diagnostics': 'Readable; English, translation not applicable.',
+                         'similarity': {'score': 1, 'reason': 'Same meaning.'}}]}
     return inp, review
 
 
@@ -35,7 +36,41 @@ class ScoringTests(unittest.TestCase):
         self.assertEqual(result['components']['coverage'], .5)
         self.assertEqual(result['components']['critical'], .5)
         self.assertEqual(result['components']['faithfulness'], 0)
-        self.assertEqual(result['score'], 48)
+        self.assertEqual(result['score'], 52)
+
+    def test_similarity_counts_and_missing_chunks_earn_zero(self):
+        i, r = fixture()
+        r['chunks'][0]['similarity']['score'] = .5
+        result = s.score(i, r)
+        self.assertEqual(result['components']['similarity'], .5)
+        i['predictions'] = []
+        r['chunks'] = []
+        r['input_sha256'] = s.fingerprint(i)
+        self.assertEqual(s.score(i, r)['components']['similarity'], 0)
+
+    def test_similarity_must_be_bounded_and_explained(self):
+        for bad in ({'score': 1.5, 'reason': 'x'}, {'score': True, 'reason': 'x'}, {'score': .5, 'reason': ' '}, {'score': .5}):
+            with self.subTest(bad=bad):
+                i, r = fixture()
+                r['chunks'][0]['similarity'] = bad
+                with self.assertRaises(ValueError): s.score(i, r)
+
+    def test_zh_and_zh_cn_are_the_same_language(self):
+        self.assertEqual(s.normalize_language('zh-cn'), s.normalize_language('zh'))
+        self.assertEqual(s.normalize_language('zh_CN'), 'zh')
+        self.assertNotEqual(s.normalize_language('en'), s.normalize_language('zh'))
+        i, r = fixture()
+        i['gold']['summaries'][0]['language'] = 'zh-cn'
+        i['predictions'][0]['language'] = 'zh'
+        r['input_sha256'] = s.fingerprint(i)
+        self.assertTrue(s.score(i, r)['details'][0]['language_match'])
+
+    def test_translations_and_keywords_do_not_affect_score(self):
+        i, r = fixture()
+        i['gold']['summaries'][0].update(summary_text='保持阴凉。', summary_text_en='Keep cool.',
+                                         keywords=['储存'], keywords_en=['storage'])
+        r['input_sha256'] = s.fingerprint(i)
+        self.assertEqual(s.score(i, r)['score'], 100)
 
     def test_missing_prediction_penalized(self):
         i, r = fixture()
@@ -104,6 +139,21 @@ class ScoringTests(unittest.TestCase):
         r['input_sha256'] = s.fingerprint(i)
         self.assertEqual(s.score(i, r)['score'], 100)
         i['predictions'][0]['source_sentence_spans'][0]['spans'][0]['end'] = 9
+        r['input_sha256'] = s.fingerprint(i)
+        self.assertEqual(s.score(i, r)['components']['provenance'], 0)
+
+    def test_extract_source_line_spans_must_equal_chunk_lines(self):
+        i, r = fixture()
+        i['candidate'] = 'extract'
+        i['source'][0]['type'] = 'text'
+        i['source'].append({'line': 2, 'content': 'Overlap context.', 'type': 'text'})
+        i['gold']['summaries'][0]['source_line_spans'] = ['1-2']
+        i['predictions'][0]['source_line_spans'] = ['1-2']
+        i['predictions'][0]['source_sentence_spans'] = [
+            {'text': 'Keep cool.', 'spans': [{'line': 1, 'start': 0, 'end': 10}]}]
+        r['input_sha256'] = s.fingerprint(i)
+        self.assertEqual(s.score(i, r)['components']['provenance'], 1)
+        i['predictions'][0]['source_line_spans'] = ['1']
         r['input_sha256'] = s.fingerprint(i)
         self.assertEqual(s.score(i, r)['components']['provenance'], 0)
 

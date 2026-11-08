@@ -2,6 +2,7 @@
   "chunks": 10,
   "coverage": 30,
   "faithfulness": 30,
+  "similarity": 10,
   "critical": 15,
   "provenance": 10,
   "budget": 5

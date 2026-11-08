@@ -50,6 +50,13 @@ class BenchmarkTests(unittest.TestCase):
     def test_valid_bilingual_and_empty_chunks(self):
         self.assertIs(io.validate(self.record, self.payload), self.payload)
         self.assertEqual(self.payload['summaries'][1]['source_line_spans'], ['2', '4'])
+        self.assertEqual(self.payload['summaries'][0]['source_line_spans'], ['1-2'])
+
+    def test_compact_spans_round_trip(self):
+        self.assertEqual(io.compact([1, 2, 3, 5, 7, 8]), ['1-3', '5', '7-8'])
+        self.assertEqual(io.expand_spans(['1-3', '5']), [1, 2, 3, 5])
+        with self.assertRaises(ValueError):
+            io.expand_spans(['3-1'])
 
     def test_changed_source(self):
         self.source.write_text(self.source.read_text().replace('8°C', '9°C'))

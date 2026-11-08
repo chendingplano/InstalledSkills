@@ -1,6 +1,7 @@
 ---
 name: create-element
 description: Use when creating or extending a configurable, reusable Web Page Interpreter (WPI) frontend element, its JSON descriptor attributes, or its code-module document, from primitive buttons and inputs to complex lists with data operations. Also applies when continuing an element's human design review or implementing its approved document.
+disable-model-invocation: true
 ---
 
 # Create element

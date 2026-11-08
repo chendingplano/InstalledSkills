@@ -69,6 +69,40 @@ class FieldCheckTests(unittest.TestCase):
         self.assertTrue(io.value_ok(row('g', value_range_type='limit_absent', metric_value=''),
                                     row('p', metric_value='')))
 
+    def test_collection_relation_and_every_member_are_required(self):
+        structure = {'kind': 'alternatives', 'values': ['10', '20', '30']}
+        gold = row('g', metric_value='10, 20 or 30', value_range_type='exact', value_structure=structure)
+        reordered = dict(kind='alternatives', values=['30.0', '10', '20'])
+        self.assertTrue(io.value_ok(gold, row('p', metric_value='30.0, 10 or 20', value_range_type='exact', value_structure=reordered)))
+        for prediction in (
+            row('p', metric_value='10', value_structure=structure),
+            row('p', metric_value='10'),
+            row('p', metric_value='10–30', value_range_type='range', value_min=10, value_max=30),
+            row('p', value_structure={'kind': 'required_points', 'values': ['10', '20', '30']}),
+            row('p', value_structure={'kind': 'alternatives', 'values': ['10', '20']}),
+        ):
+            with self.subTest(prediction=prediction):
+                self.assertFalse(io.value_ok(gold, prediction))
+
+    def test_legacy_gold_keeps_identical_expression_without_new_metadata(self):
+        gold = row('g', metric_value='250×200', value_range_type='exact')
+        prediction = row('p', metric_value='250×200', value_range_type='exact',
+                         value_structure={'kind': 'composite', 'values': ['250', '200']})
+        self.assertTrue(io.value_ok(gold, prediction))
+        prediction['metric_value'] = '250'
+        self.assertFalse(io.value_ok(gold, prediction))
+
+    def test_composite_order_and_expression_are_significant(self):
+        gold = row('g', value_structure={'kind': 'composite', 'values': ['250', '200']})
+        self.assertFalse(io.value_ok(gold, row('p', value_structure={'kind': 'composite', 'values': ['200', '250']})))
+        gold['value_structure'] = {'kind': 'expression', 'values': ['70+age*2']}
+        self.assertFalse(io.value_ok(gold, row('p', metric_value='70')))
+
+    def test_expression_without_members_compares_complete_expression(self):
+        gold = row('g', metric_value='70+age×2', value_structure={'kind': 'expression'})
+        self.assertTrue(io.value_ok(gold, row('p', metric_value='70 + age×2', value_structure={'kind': 'expression'})))
+        self.assertFalse(io.value_ok(gold, row('p', metric_value='70', value_structure={'kind': 'expression'})))
+
     def test_kind_and_lines(self):
         test = row('g', value_range_type='exact', reasoning_tags=['test_condition', 'kind:test_parameter'])
         checks = io.field_checks(test, row('p', value_range_type='exact', source_line_spans=['130:134']))
@@ -79,7 +113,7 @@ class FieldCheckTests(unittest.TestCase):
     def test_disabled_check_renormalizes(self):
         credit = io.pair_credit({'value': True, 'range_type': True, 'kind': False, 'unit': True, 'lines': None,
                                  'condition': True})
-        self.assertAlmostEqual(credit, 0.75 / 0.90)
+        self.assertAlmostEqual(credit, (10 + 6 + 6 + 5) / (10 + 6 + 6 + 6 + 5))  # scoring v4 weights
 
     def test_condition_check(self):
         g = row('g', condition='适用人群：幼儿；称量≤50 kg')
@@ -92,7 +126,33 @@ class FieldCheckTests(unittest.TestCase):
                                         row('p', condition='试验方法：GB/T 19851.21-2007中第3章')))  # dash variants
         checks = io.field_checks(g, row('p', condition='适用人群：成年人；称量≤50 kg'))
         self.assertFalse(checks['condition'])
-        self.assertAlmostEqual(io.pair_credit(checks), 0.80)
+        self.assertAlmostEqual(io.pair_credit(checks), 35 / 40)  # condition is 5 of the 40 field weight
+
+    def test_frame_checks(self):
+        glucose = lambda conc: {'uses': [{'role': 'agent', 'name': '葡萄糖',
+                                          'spec': [{'property': '浓度', 'value': conc, 'unit': '%'}]}],
+                                'method': [{'label': '给药途径', 'value': '静脉推注'}]}
+        g = row('g', frame=glucose('50'))
+        self.assertTrue(io.uses_ok(g, row('p', frame=glucose('50'))))
+        self.assertFalse(io.uses_ok(g, row('p', frame=glucose('25'))))           # another strength
+        self.assertFalse(io.uses_ok(g, row('p', frame={'uses': [{'role': 'agent', 'name': '葡萄糖'}]})))  # spec lost
+        self.assertTrue(io.uses_ok(g, row('p', frame='{"uses":[{"role":"agent","name":"葡萄糖注射液",'
+                                                      '"spec":[{"property":"concentration","value":"50","unit":"％"}]}]}')))
+        self.assertTrue(io.method_ok(g, row('p', frame=glucose('50'))))
+        self.assertFalse(io.method_ok(g, row('p')))
+        self.assertTrue(io.uses_ok(row('g'), row('p')) and io.method_ok(row('g'), row('p')))  # both empty
+
+    def test_legacy_gold_reads_the_frame_back_into_condition(self):
+        legacy = row('g', condition='适用人群：幼儿；试验装置：5 等量块')
+        pred = row('p', condition='适用人群：幼儿',
+                   frame={'uses': [{'role': 'apparatus', 'name': '量块', 'spec': [{'property': '等级', 'value': '5 等'}]}]})
+        checks = io.field_checks(legacy, pred, frame_gold=False)
+        self.assertTrue(checks['condition'])
+        self.assertIsNone(checks['uses'])
+        self.assertIsNone(checks['method'])
+        self.assertFalse(io.field_checks(legacy, pred, frame_gold=True)['condition'])
+        self.assertFalse(io.gold_has_frame({'skill_version': '8.0.0'}))
+        self.assertTrue(io.gold_has_frame({'skill_version': '9.0.0'}))
 
 
 class ScoreTests(unittest.TestCase):
@@ -111,7 +171,7 @@ class ScoreTests(unittest.TestCase):
         w = io.load_weights()
         # 2 of 3 gold found, 2 of 3 predictions real; value right on 1 of 2 pairs, other fields all right
         comp = {'missing': 2 / 3, 'false_positive': 2 / 3, 'value': 0.5, 'range_type': 1, 'kind': 1,
-                'unit': 1, 'lines': 1, 'condition': 1}
+                'unit': 1, 'lines': 1, 'condition': 1, 'uses': 1, 'method': 1}
         self.assertEqual(result['score'], round(100 * sum(w[n] * comp[n] for n in comp)))
         self.assertAlmostEqual(result['main']['soft_f1'], 2 * (1.75 / 3) * (1.75 / 3) / (2 * 1.75 / 3))
         self.assertEqual(result['without_test_parameters']['gold_rows'], 2)
@@ -148,6 +208,14 @@ class ScoreTests(unittest.TestCase):
         nothing = {'pairs': [], 'missed': [{'gold': 'g1'}],
                    'false_positives': [{'pred': 'p1', 'cause': 'not_in_gold'}]}
         self.assertEqual(io.score(inp, nothing)['score'], 1)
+
+    def test_override_cannot_approve_lost_collection_members(self):
+        self.inp['gold'][0].update(metric_value='10, 20 or 30', value_range_type='exact',
+                                 value_structure={'kind': 'alternatives', 'values': ['10', '20', '30']})
+        self.inp['predictions'][0].update(metric_value='10', value_range_type='exact')
+        self.matches['overrides'] = [{'gold': 'g1', 'field': 'value', 'correct': True, 'reason': 'notation'}]
+        with self.assertRaisesRegex(io.ScoreError, 'cannot erase'):
+            io.score(self.inp, self.matches)
 
     def test_override_changes_credit(self):
         self.matches['overrides'] = [{'gold': 'g2', 'field': 'value', 'correct': True, 'reason': 'notation'}]
